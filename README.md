@@ -24,6 +24,21 @@ renderer (`oc-grid`), same color schemes, same frame look.
   Changes apply and are saved at once.
 * Remembers the playlist, volume, modes and window size between runs.
 
+## Install
+
+Downloads for macOS (Apple silicon), Windows and Linux are on the
+[website](https://sandboxly.github.io/orchard-music-player/) and the
+[releases page](https://github.com/sandboxly/orchard-music-player/releases).
+
+**Omarchy and other Arch-based systems** — one command, no root except for runtime libraries:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/sandboxly/orchard-music-player/main/packaging/omarchy/install.sh | bash
+```
+
+Add `-s -- --bind --free-f9` after `bash` to bind Super+Ctrl+Shift+M and free F9 (Settings) from
+Omarchy's dictation key; `-s -- --uninstall` removes it. Rerun the command to update.
+
 ## Building
 
 ```sh
