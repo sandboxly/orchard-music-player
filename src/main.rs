@@ -1,6 +1,11 @@
 //! The window: winit event loop, GPU surface, input conversion, wake-ups
 //! from workers and the audio thread. Everything else is in `App`.
 
+// Windows: a GUI program, no console window behind it. Output still reaches
+// a redirected stdout (CI's `Start-Process -RedirectStandardOutput`); in a
+// console window the flags that print attach to it (`attach_parent_console`).
+#![cfg_attr(all(windows, not(test)), windows_subsystem = "windows")]
+
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
@@ -370,7 +375,26 @@ fn self_test() -> ExitCode {
     if ok { ExitCode::SUCCESS } else { ExitCode::FAILURE }
 }
 
+/// Windows: started with an option (`--self-test`, `--version`…) from a
+/// console and with nothing redirected, print to that console. A GUI
+/// program gets no console of its own, and files alone open no console.
+#[cfg(windows)]
+fn attach_parent_console() {
+    use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole, GetStdHandle, STD_OUTPUT_HANDLE};
+    if !std::env::args_os().skip(1).any(|a| a.to_string_lossy().starts_with('-')) {
+        return;
+    }
+    // SAFETY: plain Win32 calls without pointers.
+    unsafe {
+        if GetStdHandle(STD_OUTPUT_HANDLE).is_null() {
+            AttachConsole(ATTACH_PARENT_PROCESS);
+        }
+    }
+}
+
 fn main() -> ExitCode {
+    #[cfg(windows)]
+    attach_parent_console();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "-h" || a == "--help") {
         println!("{}", usage());

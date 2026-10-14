@@ -1,0 +1,274 @@
+name: CI
+
+# Every push and pull request: tests on Linux, Windows and macOS, and the
+# Windows/Linux packages as workflow artifacts. A pushed tag vX.Y.Z also
+# uploads those packages to a draft GitHub release (never published here;
+# see docs/RELEASING.md).
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+  RUST_BACKTRACE: "1"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22.04: the oldest glibc we ship for (same as the packages).
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-build
+        with:
+          components: clippy
+          cache-key: test
+
+      - name: Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --locked --no-fail-fast
+
+      - name: Release build
+        run: cargo build --locked --release
+
+      - name: Self-test of the release build
+        run: |
+          exe=target/release/orchard-music-player
+          if [ "$RUNNER_OS" = "Windows" ]; then exe="$exe.exe"; fi
+          "$exe" --version
+          "$exe" --self-test
+
+  package:
+    name: Package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]  # 22.04: an older glibc runs on more distributions
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-build
+        with:
+          cache-key: package
+
+      - name: Release build
+        run: cargo build --locked --release
+
+      - name: Version
+        run: |
+          id="$(cargo pkgid)"
+          echo "VERSION=${id##*[#@]}" >> "$GITHUB_ENV"
+          echo "version ${id##*[#@]}"
+
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: cargo-about@0.9.2
+
+      - name: Rust crate licenses (licenses/THIRD-PARTY-RUST.txt)
+        run: |
+          if ! scripts/third-party-licenses.sh --check; then
+            echo "::warning file=licenses/THIRD-PARTY-RUST.txt::out of date (packages get a regenerated copy); rerun the script and commit"
+            scripts/third-party-licenses.sh
+          fi
+
+      - name: Stage the app folder
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            packaging/stage.sh win-x64 target/release/orchard-music-player.exe dist/orchard-music-player
+          else
+            packaging/stage.sh linux-x64 target/release/orchard-music-player dist/orchard-music-player
+          fi
+
+      - name: Self-test of the staged app
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            dist/orchard-music-player/orchard-music-player.exe --self-test
+          else
+            echo "linked libraries:"
+            ldd dist/orchard-music-player/orchard-music-player
+            if ldd dist/orchard-music-player/orchard-music-player | grep -q "not found"; then exit 1; fi
+            objdump -T dist/orchard-music-player/orchard-music-player | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1
+            dist/orchard-music-player/orchard-music-player --self-test
+          fi
+
+      - name: Windows installer and zip
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) { choco install innosetup -y --no-progress }
+          $iscc = (Get-Command iscc -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          & $iscc "/DAppVersion=$env:VERSION" packaging\windows\orchard-music-player.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force release | Out-Null
+          Move-Item dist\Orchard-Music-Player-Setup.exe release\
+          Compress-Archive -Path dist\orchard-music-player -DestinationPath release\Orchard-Music-Player-Windows.zip
+
+      - name: Test the installer (silent install, run, uninstall)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Start-Process release\Orchard-Music-Player-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-','/CURRENTUSER' -Wait
+          $app = "$env:LOCALAPPDATA\Programs\Orchard Music Player"
+          $exe = "$app\orchard-music-player.exe"
+          if (-not (Test-Path $exe)) { throw "not installed: $exe" }
+          foreach ($f in 'licenses\LICENSE.txt', 'licenses\THIRD-PARTY-RUST.txt', 'licenses\libopus.txt', 'orchard-music-player.ico', 'unins000.exe') {
+            if (-not (Test-Path "$app\$f")) { throw "missing $app\$f" }
+          }
+          $lnk = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Orchard Music Player.lnk"
+          if (-not (Test-Path $lnk)) { throw "no Start menu entry: $lnk" }
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{19F2E30E-5AF0-4452-9447-BF200EDC2117}_is1'
+          if (-not (Test-Path $key)) { throw "no uninstall entry: $key" }
+          $run = Start-Process $exe -ArgumentList '--self-test' -Wait -PassThru -NoNewWindow -RedirectStandardOutput selftest.txt
+          Get-Content selftest.txt
+          if ($run.ExitCode) { throw "self-test of the installed app failed ($($run.ExitCode))" }
+          Start-Process "$app\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          # The uninstaller continues from a copy of itself in TEMP: wait for it to finish.
+          foreach ($i in 1..30) { if (-not (Test-Path $app)) { break }; Start-Sleep 1 }
+          if (Test-Path $app) {
+            Get-ChildItem -Recurse $app | ForEach-Object { Write-Host "  left $($_.FullName)" }
+            throw "uninstall left $app behind"
+          }
+          if (Test-Path $lnk) { throw "uninstall left the Start menu entry behind" }
+
+      - name: Linux packages (tar.gz, deb, rpm, AppImage)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p release tools
+          tar czf release/Orchard-Music-Player-Linux.tar.gz -C dist orchard-music-player
+          curl -fsSL -o tools/nfpm.tar.gz https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Linux_x86_64.tar.gz
+          echo "6d7f9a28b2f397934403950fcbba83f598b08d02edbe79a0815b3b4897341750  tools/nfpm.tar.gz" | sha256sum -c
+          tar xzf tools/nfpm.tar.gz -C tools nfpm
+          tools/nfpm package -f packaging/linux/nfpm.yaml -p deb -t release/Orchard-Music-Player-Linux-x86_64.deb
+          tools/nfpm package -f packaging/linux/nfpm.yaml -p rpm -t release/Orchard-Music-Player-Linux-x86_64.rpm
+          # AppImage: the app folder plus a launcher, desktop entry and icon.
+          mkdir -p AppDir/usr/lib
+          cp -a dist/orchard-music-player AppDir/usr/lib/orchard-music-player
+          cp packaging/linux/AppRun AppDir/AppRun
+          chmod +x AppDir/AppRun
+          cp packaging/linux/orchard-music-player.desktop packaging/linux/orchard-music-player.png AppDir/
+          curl -fsSL -o tools/appimagetool https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  tools/appimagetool" | sha256sum -c
+          chmod +x tools/appimagetool
+          ARCH=x86_64 tools/appimagetool --appimage-extract-and-run AppDir release/Orchard-Music-Player-Linux-x86_64.AppImage
+          ls -l release
+
+      - name: Test the Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          dpkg-deb --info release/Orchard-Music-Player-Linux-x86_64.deb
+          sudo apt-get install -y ./release/Orchard-Music-Player-Linux-x86_64.deb
+          test -L /usr/bin/orchard-music-player
+          test -f /usr/share/applications/orchard-music-player.desktop
+          test -f /usr/share/icons/hicolor/256x256/apps/orchard-music-player.png
+          test -f /usr/share/doc/orchard-music-player/libopus.txt
+          test -f /opt/orchard-music-player/licenses/THIRD-PARTY-RUST.txt
+          desktop-file-validate /usr/share/applications/orchard-music-player.desktop || true
+          orchard-music-player --version
+          orchard-music-player --self-test
+          sudo apt-get remove -y orchard-music-player
+          if [ -e /opt/orchard-music-player ] || [ -e /usr/bin/orchard-music-player ]; then
+            echo "removing the package left files behind"; find /opt/orchard-music-player; exit 1
+          fi
+          chmod +x release/Orchard-Music-Player-Linux-x86_64.AppImage
+          release/Orchard-Music-Player-Linux-x86_64.AppImage --appimage-extract-and-run --self-test
+          # The tarball runs from wherever it is unpacked.
+          mkdir -p "$RUNNER_TEMP/tgz"
+          tar xzf release/Orchard-Music-Player-Linux.tar.gz -C "$RUNNER_TEMP/tgz"
+          "$RUNNER_TEMP/tgz/orchard-music-player/orchard-music-player" --self-test
+
+      # The runner already has every library: only a clean system shows
+      # whether the packages' declared dependencies are enough.
+      - name: Test the deb (clean Ubuntu and Debian containers)
+        if: runner.os == 'Linux'
+        run: |
+          for image in ubuntu:22.04 ubuntu:24.04 debian:12 debian:13; do
+            echo "::group::$image"
+            docker run --rm -v "$PWD/release:/release:ro" -e ORCHARD_MUSIC_PLAYER_CONFIG_DIR=/tmp/omp-config \
+              -e DEBIAN_FRONTEND=noninteractive "$image" \
+              bash -euxc 'apt-get update -qq
+                          apt-get install -y -qq /release/Orchard-Music-Player-Linux-x86_64.deb
+                          orchard-music-player --self-test
+                          apt-get remove -y -qq orchard-music-player
+                          test ! -e /opt/orchard-music-player'
+            echo "::endgroup::"
+          done
+
+      - name: Test the rpm (Fedora container)
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm -v "$PWD/release:/release:ro" -e ORCHARD_MUSIC_PLAYER_CONFIG_DIR=/tmp/omp-config fedora:42 \
+            bash -euxc 'dnf install -y /release/Orchard-Music-Player-Linux-x86_64.rpm
+                        rpm -ql orchard-music-player
+                        orchard-music-player --self-test
+                        dnf remove -y orchard-music-player
+                        test ! -e /opt/orchard-music-player'
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: packages-${{ runner.os }}
+          path: release/*
+          if-no-files-found: error
+
+  # Tag vX.Y.Z: put the Windows/Linux packages on a draft release for the
+  # tag (created if missing). The maintainer adds the macOS dmg and publishes.
+  release:
+    name: Draft release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [test, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: The tag matches the version in Cargo.toml
+        run: |
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::tag $TAG doesn't match Cargo.toml's version $version"; exit 1
+          fi
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: packages-*
+          merge-multiple: true
+          path: release
+
+      - name: Upload to the draft release
+        run: |
+          ls -l release
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --draft --verify-tag --title "Orchard Music Player ${TAG#v}" --notes ""
+          fi
+          gh release upload "$TAG" release/* --clobber

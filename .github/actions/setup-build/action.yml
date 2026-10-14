@@ -1,0 +1,44 @@
+name: Set up the build
+description: >
+  Rust toolchain and cache, system packages (Linux) and a scratch config dir.
+inputs:
+  components:
+    description: Extra rustup components (e.g. clippy)
+    required: false
+    default: ""
+  cache-key:
+    description: Distinguishes the cargo caches of jobs that build differently
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master, 2026-10
+      with:
+        # Pinned: each new stable brings new clippy lints, and CI runs clippy
+        # with -D warnings. Bump on purpose.
+        toolchain: "1.97.1"
+        components: ${{ inputs.components }}
+
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      with:
+        key: ${{ inputs.cache-key }}
+
+    - name: System packages (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        # Build: cpal links ALSA; libopus is built with cmake (preinstalled).
+        # Run time (tests, --self-test): winit's keyboard libraries, a
+        # software GPU (Mesa lavapipe/llvmpipe) for the renderer, a font.
+        sudo apt-get install -y --no-install-recommends \
+          pkg-config libasound2-dev \
+          libxkbcommon0 libxkbcommon-x11-0 libx11-xcb1 libwayland-client0 \
+          libvulkan1 mesa-vulkan-drivers libegl1 libegl-mesa0 libgl1-mesa-dri \
+          fontconfig fonts-dejavu-core
+
+    - name: Scratch config dir (tests and runs never touch the real one)
+      shell: bash
+      run: |
+        mkdir -p "$RUNNER_TEMP/omp-config"
+        echo "ORCHARD_MUSIC_PLAYER_CONFIG_DIR=$RUNNER_TEMP/omp-config" >> "$GITHUB_ENV"

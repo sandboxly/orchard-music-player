@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Orchard Music Player
+GenericName=Music player
+Comment=Play your own music files and playlists
+Exec=orchard-music-player %F
+Icon=orchard-music-player
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+Keywords=music;audio;player;playlist;mp3;flac;opus;
+StartupWMClass=orchard-music-player

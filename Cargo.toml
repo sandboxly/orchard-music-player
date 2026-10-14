@@ -35,6 +35,15 @@ serde_json = "1.0"
 dirs = "6.0"
 log = "0.4"
 
+[target.'cfg(windows)'.dependencies]
+# Print --version/--self-test output to the console that started the app
+# (a GUI program there, see src/main.rs).
+windows-sys = { version = "0.61", features = ["Win32_System_Console"] }
+
+[build-dependencies]
+# The Windows icon and version resource (build.rs).
+embed-resource = "3"
+
 [dev-dependencies]
 tempfile = "3"
 
