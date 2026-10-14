@@ -72,5 +72,7 @@ Settings and the session playlist live in the platform config folder
 ```sh
 cargo test
 OMP_TEST_MUSIC=/path/to/some/music cargo test -- --nocapture   # decode + tag real files
-orchard-music-player --screenshot out.png [--size 110x36] [--theme nord] [--dialog help|themes|save]
+orchard-music-player --screenshot out.png [--size 110x36] [--theme nord] [--dialog help|themes|save|filter|browser]
+# real files: their tags and cover, the visualizer fed with the decoded audio; .webp saves lossless WebP
+orchard-music-player --screenshot out.webp --music DIR [--play N] [--at SECONDS] [--vis bars|scope] [--cursor N] [--filter TEXT]
 ```
