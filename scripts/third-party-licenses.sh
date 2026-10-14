@@ -23,10 +23,10 @@ if [[ "${1:-}" == "--check" ]]; then
   tmp="$(mktemp)"
   trap 'rm -f "$tmp"' EXIT
   generate "$tmp"
-  # Line endings aside: a Windows checkout has CRLF.
+  # Line endings aside (.gitattributes keeps the file LF on Windows too).
   if ! diff -q --strip-trailing-cr "$OUT" "$tmp" >/dev/null; then
     echo "licenses/THIRD-PARTY-RUST.txt is out of date: run scripts/third-party-licenses.sh" >&2
-    diff -u "$OUT" "$tmp" | head -40 >&2 || true
+    diff -u --strip-trailing-cr "$OUT" "$tmp" | head -60 >&2 || true
     exit 1
   fi
   echo "licenses/THIRD-PARTY-RUST.txt is up to date"
