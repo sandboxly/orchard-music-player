@@ -23,7 +23,8 @@ if [[ "${1:-}" == "--check" ]]; then
   tmp="$(mktemp)"
   trap 'rm -f "$tmp"' EXIT
   generate "$tmp"
-  if ! cmp -s "$tmp" "$OUT"; then
+  # Line endings aside: a Windows checkout has CRLF.
+  if ! diff -q --strip-trailing-cr "$OUT" "$tmp" >/dev/null; then
     echo "licenses/THIRD-PARTY-RUST.txt is out of date: run scripts/third-party-licenses.sh" >&2
     diff -u "$OUT" "$tmp" | head -40 >&2 || true
     exit 1

@@ -358,7 +358,9 @@ mod tests {
         let mut a = Entry::new(dir.path().join("sub/a.mp3"));
         a.title = Some("Band – Song".into());
         a.duration = Some(201.4);
-        let b = Entry::new(PathBuf::from("/elsewhere/b.ogg"));
+        // Absolute on this platform (on Windows, a path without a drive isn't).
+        let elsewhere = PathBuf::from(if cfg!(windows) { r"C:\elsewhere\b.ogg" } else { "/elsewhere/b.ogg" });
+        let b = Entry::new(elsewhere.clone());
         save_m3u(&[a, b], &pl).unwrap();
         let text = fs::read_to_string(&pl).unwrap();
         assert!(text.starts_with("#EXTM3U\n#EXTINF:201,Band – Song\nsub/a.mp3\n"));
@@ -367,7 +369,7 @@ mod tests {
         assert_eq!(back[0].path, dir.path().join("sub/a.mp3"));
         assert_eq!(back[0].title.as_deref(), Some("Band – Song"));
         assert_eq!(back[0].duration, Some(201.0));
-        assert_eq!(back[1].path, PathBuf::from("/elsewhere/b.ogg"));
+        assert_eq!(back[1].path, elsewhere);
         assert_eq!(back[1].duration, None);
     }
 
