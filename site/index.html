@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orchard Music Player: a music player for the music you own</title>
+<meta name="description" content="Orchard Music Player plays the music files on your computer. No account, no subscription, no cloud. Free and open source for macOS, Windows and Linux.">
+<meta name="theme-color" content="#1e1f1c">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://sandboxly.github.io/orchard-music-player/">
+<meta property="og:title" content="Orchard Music Player: a music player for the music you own">
+<meta property="og:description" content="Orchard Music Player plays the music files on your computer. No account, no subscription, no cloud. Free and open source for macOS, Windows and Linux.">
+<meta property="og:image" content="https://sandboxly.github.io/orchard-music-player/screenshots/hero.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="style.css">
+<script src="main.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="icon.png" alt="">Orchard Music Player</a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="#features">Features</a>
+      <a href="#keys">Keys</a>
+      <a href="https://github.com/sandboxly/orchard-music-player"><i class="ph ph-github-logo" aria-hidden="true"></i><span class="gh-label">GitHub</span></a>
+      <a href="#download">Download</a>
+    </nav>
+  </div>
+</header>
+
+<a class="support" href="https://ko-fi.com/sandboxly"><i class="ph ph-coffee" aria-hidden="true"></i>Enjoy Orchard Music Player? <span>Buy me a coffee!</span></a>
+
+<main id="main">
+  <section class="hero wrap">
+    <div class="hero-tags"><p class="kicker">Version 1.0</p><span class="tag">Written in Rust</span></div>
+    <h1>A music player for the music you own</h1>
+    <p class="lede">Orchard Music Player plays the music files on your computer. No account, no subscription, no cloud: your music plays from your own disk, and you decide what's in your library.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#download" data-hero-dl><i class="ph ph-download-simple" aria-hidden="true"></i><span>Download</span></a>
+      <span class="mute">Free and open source · <a href="#download">Other platforms</a></span>
+    </div>
+
+    <div class="stage">
+      <button class="frame shot" type="button" data-name="Now playing" aria-label="Enlarge screenshot: the player window">
+        <span class="chip">Now playing</span><span class="zoom ph ph-arrows-out" aria-hidden="true"></span>
+        <img src="screenshots/hero.webp" alt="The player window: the playing track with its cover, tags and a spectrum analyzer above the playlist" width="1792" height="1150">
+      </button>
+    </div>
+  </section>
+
+  <div id="features" class="features wrap">
+    <section class="why" aria-labelledby="f-why">
+      <h2 id="f-why">Your music, always ready to play</h2>
+      <p>Music files you own don't expire. They play without a connection, keep working when a subscription ends, and nobody can take them out of your library. Orchard Music Player is made for that collection: open a folder and press play.</p>
+      <p>Its maintainer went back to his own MP3 collection to stop depending on closed platforms. This is the player he built for it.</p>
+      <ul class="why-list" aria-label="What you don't need">
+        <li><i class="ph ph-check" aria-hidden="true"></i>No account or sign-in</li>
+        <li><i class="ph ph-check" aria-hidden="true"></i>No subscription</li>
+        <li><i class="ph ph-check" aria-hidden="true"></i>No internet connection</li>
+        <li><i class="ph ph-check" aria-hidden="true"></i>Your listening stays on your computer</li>
+      </ul>
+    </section>
+
+    <section class="formats" aria-labelledby="f-formats">
+      <h2 id="f-formats">Plays the files you already have</h2>
+      <p>Common formats play as they are, with no converting or importing. Tags and cover art come straight from the files.</p>
+      <ul class="fmt-list" aria-label="Supported formats">
+        <li class="frame">MP3</li>
+        <li class="frame">Ogg Vorbis</li>
+        <li class="frame">Opus</li>
+        <li class="frame">FLAC</li>
+        <li class="frame">WAV</li>
+        <li class="frame">AAC / M4A</li>
+        <li class="frame">AIFF</li>
+      </ul>
+    </section>
+
+    <section class="feature" aria-labelledby="f-classic">
+      <div>
+        <h2 id="f-classic">A classic player, without the clutter</h2>
+        <p>Transport, playlist, tags and cover art share one tidy window. It looks like a terminal program, but it's a real desktop app drawn on the GPU.</p>
+        <p>The keyboard does everything, and the mouse works too: click a track, drag the seek bar, scroll for volume or drop files onto the window.</p>
+      </div>
+      <button class="frame shot" type="button" data-name="Oscilloscope" aria-label="Enlarge screenshot: oscilloscope">
+        <span class="chip">Oscilloscope</span><span class="zoom ph ph-arrows-out" aria-hidden="true"></span>
+        <img src="screenshots/scope.webp" alt="The player with the visualizer switched to an oscilloscope" loading="lazy" width="1792" height="1150">
+      </button>
+    </section>
+
+    <section class="feature flip" aria-labelledby="f-themes">
+      <div>
+        <h2 id="f-themes">Color schemes shared with Orchard Commander</h2>
+        <p>Press <kbd>T</kbd> and the whole window previews each scheme as you move through the list. The built-in schemes match <a href="https://sandboxly.github.io/orchard-commander/">Orchard Commander</a>'s, and the schemes you made for it show up here too.</p>
+        <p>Dark and light schemes are included. For larger or smaller text, press <kbd>⌘+</kbd> or <kbd>⌘−</kbd>.</p>
+      </div>
+      <button class="frame shot" type="button" data-name="Color schemes" aria-label="Enlarge screenshot: color schemes">
+        <span class="chip">Color schemes</span><span class="zoom ph ph-arrows-out" aria-hidden="true"></span>
+        <img src="screenshots/themes.webp" alt="The color scheme picker, with the selected scheme previewed on the whole window" loading="lazy" width="1792" height="1150">
+      </button>
+    </section>
+
+    <section class="tools" aria-labelledby="f-tools">
+      <h2 id="f-tools">What makes listening better</h2>
+      <div class="tool-grid">
+        <article class="frame tool">
+          <i class="ph ph-infinity" aria-hidden="true"></i>
+          <h3>Gapless playback</h3>
+          <p>The next track is queued ahead and follows without a break, so live albums and mixes play as recorded.</p>
+        </article>
+        <article class="frame tool">
+          <i class="ph ph-equalizer" aria-hidden="true"></i>
+          <h3>ReplayGain</h3>
+          <p>Tracks play at an even volume, by track or by album, without clipping. Opus loudness tags count too.</p>
+        </article>
+        <article class="frame tool">
+          <i class="ph ph-playlist" aria-hidden="true"></i>
+          <h3>Playlists</h3>
+          <p>Add files or whole folders, reorder, shuffle and repeat. Press <kbd>/</kbd> to filter. Load and save M3U playlists.</p>
+        </article>
+        <article class="frame tool">
+          <i class="ph ph-play-pause" aria-hidden="true"></i>
+          <h3>Media keys</h3>
+          <p>Play, pause and skip with your keyboard's media keys. The track and its cover show in the system's Now Playing (macOS, Linux).</p>
+        </article>
+        <article class="frame tool">
+          <i class="ph ph-vinyl-record" aria-hidden="true"></i>
+          <h3>Tags and cover art</h3>
+          <p>Title, artist, album and cover of the playing track, plus its codec, bitrate and sample rate.</p>
+        </article>
+        <article class="frame tool">
+          <i class="ph ph-waveform" aria-hidden="true"></i>
+          <h3>Spectrum or oscilloscope</h3>
+          <p>A spectrum analyzer with falling peak caps, or an oscilloscope. Press <kbd>A</kbd> to switch.</p>
+        </article>
+        <article class="frame tool">
+          <i class="ph ph-headphones" aria-hidden="true"></i>
+          <h3>Follows your speakers</h3>
+          <p>Plug in headphones or switch the output device mid-song, and the music moves along.</p>
+        </article>
+        <article class="frame tool">
+          <i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i>
+          <h3>Picks up where you left off</h3>
+          <p>Playlist, volume, modes and window size are still there the next time you open it.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="keys" class="keys" aria-labelledby="f-keys">
+      <div>
+        <h2 id="f-keys">Keys</h2>
+        <p>Every action has a key. The key bar shows the common ones, and <kbd>F1</kbd> lists them all.</p>
+        <p class="note">On Windows and Linux, use Ctrl instead of ⌘.</p>
+      </div>
+      <div class="fbar" aria-hidden="true">
+        <span><b>1</b>Help</span><span><b>2</b>Open</span><span><b>3</b>Visualizer</span><span><b>4</b>Save</span><span><b>5</b>Load</span><span><b>6</b>Shuffle</span><span><b>7</b>Repeat</span><span><b>8</b>Remove</span><span><b>9</b>Theme</span><span><b>10</b>Quit</span>
+      </div>
+      <dl class="frame key-table">
+        <span class="chip">Keys</span>
+        <div><dt>Space</dt><dd>Play or pause</dd></div>
+        <div><dt>Enter</dt><dd>Play the selected track</dd></div>
+        <div><dt>Z X C V B</dt><dd>Previous, play, pause, stop, next</dd></div>
+        <div><dt>← →</dt><dd>Seek 5 seconds (⇧: 30)</dd></div>
+        <div><dt>+ −</dt><dd>Volume</dd></div>
+        <div><dt>⌥↑ ⌥↓</dt><dd>Move the selected track</dd></div>
+        <div><dt>Del</dt><dd>Remove the track (⇧Del: all)</dd></div>
+        <div><dt>J</dt><dd>Jump to the playing track</dd></div>
+        <div><dt>/ or ⌘F</dt><dd>Filter the playlist</dd></div>
+        <div><dt>S / R</dt><dd>Shuffle / repeat off, all, one</dd></div>
+        <div><dt>A</dt><dd>Spectrum, oscilloscope, off</dd></div>
+        <div><dt>G</dt><dd>ReplayGain track, album, off</dd></div>
+        <div><dt>T</dt><dd>Color scheme</dd></div>
+        <div><dt>⌘O</dt><dd>Open files or folders</dd></div>
+        <div><dt>⌘L / ⌘S</dt><dd>Load / save a playlist</dd></div>
+        <div><dt>⌘+ ⌘− ⌘0</dt><dd>Font size</dd></div>
+      </dl>
+    </section>
+
+    <section class="gallery" aria-labelledby="f-gallery">
+      <h2 id="f-gallery">Screenshots</h2>
+      <div class="gallery-grid">
+        <figure class="wide">
+          <button class="frame shot" type="button" data-name="Quick filter" aria-label="Enlarge screenshot: quick filter">
+            <span class="chip">Quick filter</span><span class="zoom ph ph-arrows-out" aria-hidden="true"></span>
+            <img src="screenshots/filter.webp" alt="The playlist narrowed down by the quick filter" loading="lazy" width="1792" height="1150">
+          </button>
+          <figcaption>Type after <kbd>/</kbd> to narrow down a long playlist</figcaption>
+        </figure>
+        <figure class="tall">
+          <button class="frame shot" type="button" data-name="Narrow window" aria-label="Enlarge screenshot: narrow window">
+            <span class="chip">Narrow window</span><span class="zoom ph ph-arrows-out" aria-hidden="true"></span>
+            <img src="screenshots/narrow.webp" alt="The player in a tall, narrow window" loading="lazy">
+          </button>
+          <figcaption>The layout adapts to a tall, narrow window</figcaption>
+        </figure>
+        <figure>
+          <button class="frame shot" type="button" data-name="File browser" aria-label="Enlarge screenshot: file browser">
+            <span class="chip">File browser</span><span class="zoom ph ph-arrows-out" aria-hidden="true"></span>
+            <img src="screenshots/browser.webp" alt="The built-in file browser for adding files and folders" loading="lazy" width="1792" height="1150">
+          </button>
+          <figcaption>Add files and folders with the built-in browser</figcaption>
+        </figure>
+        <figure>
+          <button class="frame shot" type="button" data-name="Light scheme" aria-label="Enlarge screenshot: light color scheme">
+            <span class="chip">Light scheme</span><span class="zoom ph ph-arrows-out" aria-hidden="true"></span>
+            <img src="screenshots/light.webp" alt="The player in a light color scheme" loading="lazy" width="1792" height="1150">
+          </button>
+          <figcaption>A light color scheme</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="frame family" aria-labelledby="f-family">
+      <img src="commander-icon.png" alt="" width="64" height="64">
+      <div>
+        <h2 id="f-family">Part of the Orchard family</h2>
+        <p>Orchard Commander is a two-panel file manager with the same look and the same color schemes. Both are free and open source.</p>
+      </div>
+      <a class="btn" href="https://sandboxly.github.io/orchard-commander/"><span>Visit Orchard Commander</span><i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
+    </section>
+  </div>
+
+  <section id="download" class="download" aria-labelledby="dl-title">
+    <div class="wrap">
+      <p class="kicker">Version 1.0.0</p>
+      <h2 id="dl-title">Download Orchard Music Player</h2>
+      <div class="dl-grid">
+        <div class="frame dl" data-os="macos" data-label="macOS">
+          <span class="chip">macOS</span><span class="badge">Your system</span>
+          <i class="ph ph-apple-logo" aria-hidden="true"></i>
+          <p class="req">Apple silicon · macOS 12 or later</p>
+          <div class="actions">
+            <a class="btn btn-primary" data-primary href="https://github.com/sandboxly/orchard-music-player/releases/latest/download/Orchard-Music-Player-macOS.dmg"><span>Download for macOS</span><i class="ph ph-download-simple" aria-hidden="true"></i></a>
+            <span class="file">Orchard-Music-Player-macOS.dmg</span>
+            <div class="cmd"><code id="brew">brew install --cask sandboxly/tap/orchard-music-player</code><button type="button" data-copy="brew" aria-label="Copy command"><i class="ph ph-copy" aria-hidden="true"></i></button></div>
+          </div>
+        </div>
+        <div class="frame dl" data-os="windows" data-label="Windows">
+          <span class="chip">Windows</span><span class="badge">Your system</span>
+          <i class="ph ph-windows-logo" aria-hidden="true"></i>
+          <p class="req">Windows 10 and 11 · 64-bit</p>
+          <div class="actions">
+            <a class="btn btn-primary" data-primary href="https://github.com/sandboxly/orchard-music-player/releases/latest/download/Orchard-Music-Player-Setup.exe"><span>Download for Windows</span><i class="ph ph-download-simple" aria-hidden="true"></i></a>
+            <span class="file">Orchard-Music-Player-Setup.exe</span>
+            <div class="alts"><span>Also:</span><a href="https://github.com/sandboxly/orchard-music-player/releases/latest/download/Orchard-Music-Player-Windows.zip">Portable .zip</a></div>
+          </div>
+        </div>
+        <div class="frame dl" data-os="linux" data-label="Linux">
+          <span class="chip">Linux</span><span class="badge">Your system</span>
+          <i class="ph ph-linux-logo" aria-hidden="true"></i>
+          <p class="req">x86-64</p>
+          <div class="actions">
+            <a class="btn btn-primary" data-primary href="https://github.com/sandboxly/orchard-music-player/releases/latest/download/Orchard-Music-Player-Linux-x86_64.AppImage"><span>Download for Linux</span><i class="ph ph-download-simple" aria-hidden="true"></i></a>
+            <span class="file">Orchard-Music-Player-Linux-x86_64.AppImage</span>
+            <div class="alts"><span>Also:</span><a href="https://github.com/sandboxly/orchard-music-player/releases/latest/download/Orchard-Music-Player-Linux-x86_64.deb">.deb</a><a href="https://github.com/sandboxly/orchard-music-player/releases/latest/download/Orchard-Music-Player-Linux-x86_64.rpm">.rpm</a><a href="https://github.com/sandboxly/orchard-music-player/releases/latest/download/Orchard-Music-Player-Linux.tar.gz">.tar.gz</a></div>
+          </div>
+        </div>
+      </div>
+      <p class="dl-note">Release notes and older versions are on <a href="https://github.com/sandboxly/orchard-music-player/releases">GitHub</a>. To get started, drop a music folder onto the window or press <kbd>F2</kbd>.</p>
+    </div>
+  </section>
+
+  <!-- credits -->
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <span><img src="icon.png" alt="" width="18" height="18">Orchard Music Player · MIT License</span>
+    <a href="https://sandboxly.github.io/orchard-commander/">Orchard Commander</a>
+    <a href="https://github.com/sandboxly/orchard-music-player">Source code</a>
+    <a href="https://github.com/sandboxly/orchard-music-player/issues">Report a problem</a>
+  </div>
+</footer>
+
+<dialog id="lightbox" class="lightbox" aria-label="Screenshot">
+  <span class="chip"></span>
+  <button class="close" type="button" aria-label="Close">Esc ✕</button>
+  <img alt="">
+</dialog>
+</body>
+</html>
