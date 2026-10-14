@@ -1,0 +1,78 @@
+# .deb and .rpm from the staged app folder (packaging/stage.sh linux-x64 ...
+# dist/orchard-music-player), built in CI from the repository root:
+#   VERSION=1.0.0 nfpm package -f packaging/linux/nfpm.yaml -p deb -t dist/
+name: orchard-music-player
+arch: amd64
+platform: linux
+version: ${VERSION}
+section: sound
+priority: optional
+maintainer: Stephan Lengl <lengl.stephan@gmail.com>
+description: |
+  Themeable, keyboard-friendly music player for your own music files.
+  Plays folders and M3U playlists gaplessly (MP3, FLAC, Opus, AAC, WAV and
+  more), with cover art, a spectrum analyzer and media keys.
+vendor: Stephan Lengl
+homepage: https://github.com/sandboxly/orchard-music-player
+license: MIT and BSD-3-Clause
+contents:
+  # The executable and licenses/.
+  - src: dist/orchard-music-player
+    dst: /opt/orchard-music-player
+    type: tree
+  - src: /opt/orchard-music-player/orchard-music-player
+    dst: /usr/bin/orchard-music-player
+    type: symlink
+  - src: packaging/linux/orchard-music-player.desktop
+    dst: /usr/share/applications/orchard-music-player.desktop
+  - src: packaging/linux/orchard-music-player.png
+    dst: /usr/share/icons/hicolor/256x256/apps/orchard-music-player.png
+  - src: dist/orchard-music-player/licenses
+    dst: /usr/share/doc/orchard-music-player
+    type: tree
+overrides:
+  deb:
+    depends:
+      # nfpm doesn't compute shared-library dependencies: the binary is built
+      # on Ubuntu 22.04 (glibc 2.35) and links ALSA.
+      - libc6 (>= 2.35)
+      - libgcc-s1
+      # Versioned: unversioned, Ubuntu 24.04's apt satisfies `libasound2` with
+      # liboss4-salsa-asound2 (an OSS shim) and the app fails to start.
+      - libasound2t64 (>= 1.0.16) | libasound2 (>= 1.0.16)
+      # Loaded at run time: keyboard handling, windows (X11; Wayland is
+      # recommended), fonts.
+      - libxkbcommon0
+      - libxkbcommon-x11-0
+      - libx11-6
+      - libx11-xcb1
+      - libxcursor1
+      - libxi6
+      - fontconfig
+      # GPU: the Vulkan or EGL loader plus a driver (Mesa's run on any hardware,
+      # in software if needed); the loader alone can't draw anything.
+      - libvulkan1 | libegl1
+      - mesa-vulkan-drivers | vulkan-icd | libegl-mesa0
+    recommends:
+      - mesa-vulkan-drivers
+      - libwayland-client0
+      - fonts-dejavu-core
+  rpm:
+    depends:
+      - glibc >= 2.35
+      - alsa-lib
+      - libxkbcommon
+      - libxkbcommon-x11
+      - libX11
+      - libX11-xcb
+      - libXcursor
+      - libXi
+      - fontconfig
+      - (vulkan-loader or mesa-libEGL)
+      - (mesa-vulkan-drivers or mesa-libEGL)
+    recommends:
+      - mesa-vulkan-drivers
+      - libwayland-client
+      - dejavu-sans-mono-fonts
+rpm:
+  group: Applications/Multimedia
