@@ -106,7 +106,7 @@ kbd { display: inline-block; font-size: 0.8em; line-height: 1.5; padding: 0 6px;
 
 /* feature grid */
 .tools > h2 { margin-bottom: 36px; }
-.tool-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
+.tool-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
 .tool { padding: 22px 20px 20px; display: flex; flex-direction: column; gap: 10px; background: transparent; }
 .tool > i { font-size: 26px; color: var(--cursor-bg); }
 .tool h3 { font-size: 16px; font-weight: 700; color: var(--text); }

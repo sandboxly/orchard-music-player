@@ -87,7 +87,7 @@
       <div>
         <h2 id="f-classic">A classic player, without the clutter</h2>
         <p>Transport, playlist, tags and cover art share one tidy window. It looks like a terminal program, but it's a real desktop app drawn on the GPU.</p>
-        <p>The keyboard does everything, and the mouse works too: click a track, drag the seek bar, scroll for volume or drop files onto the window.</p>
+        <p>Every action has a key, so you rarely need to reach for the mouse. The mouse works too.</p>
       </div>
       <button class="frame shot" type="button" data-name="Oscilloscope" aria-label="Enlarge screenshot: oscilloscope">
         <span class="chip">Oscilloscope</span><span class="zoom ph ph-arrows-out" aria-hidden="true"></span>
@@ -99,8 +99,7 @@
       <div>
         <h2 id="f-themes">Color schemes shared with Orchard Commander</h2>
         <p>Press <kbd>T</kbd> and the whole window previews each scheme as you move through the list. The built-in schemes match <a href="https://sandboxly.github.io/orchard-commander/">Orchard Commander</a>'s, and the schemes you made for it show up here too.</p>
-        <p>Dark and light schemes are included. For larger or smaller text, press <kbd>⌘+</kbd> or <kbd>⌘−</kbd>.</p>
-      </div>
+              </div>
       <button class="frame shot" type="button" data-name="Color schemes" aria-label="Enlarge screenshot: color schemes">
         <span class="chip">Color schemes</span><span class="zoom ph ph-arrows-out" aria-hidden="true"></span>
         <img src="screenshots/themes.webp" alt="The color scheme picker, with the selected scheme previewed on the whole window" loading="lazy" width="1792" height="1150">
@@ -108,47 +107,37 @@
     </section>
 
     <section class="tools" aria-labelledby="f-tools">
-      <h2 id="f-tools">What makes listening better</h2>
+      <h2 id="f-tools">What sets it apart</h2>
       <div class="tool-grid">
+        <article class="frame tool">
+          <i class="ph ph-folder-open" aria-hidden="true"></i>
+          <h3>No import, no library</h3>
+          <p>Open a folder or drop it onto the window, and it plays. There's no database to build or keep in sync, and your files are never moved, renamed or retagged.</p>
+        </article>
+        <article class="frame tool">
+          <i class="ph ph-file-text" aria-hidden="true"></i>
+          <h3>Playlists are plain files</h3>
+          <p>Playlists are saved as ordinary M3U files with relative paths. Other players can open them, so nothing is locked into this app.</p>
+        </article>
         <article class="frame tool">
           <i class="ph ph-infinity" aria-hidden="true"></i>
           <h3>Gapless playback</h3>
-          <p>The next track is queued ahead and follows without a break, so live albums and mixes play as recorded.</p>
+          <p>The next track is queued ahead and follows without a break, so live albums and continuous mixes play as recorded.</p>
         </article>
         <article class="frame tool">
           <i class="ph ph-equalizer" aria-hidden="true"></i>
-          <h3>ReplayGain</h3>
-          <p>Tracks play at an even volume, by track or by album, without clipping. Opus loudness tags count too.</p>
+          <h3>ReplayGain without clipping</h3>
+          <p>Even volume by track or by album. Gain is lowered where a track's peak would clip, and Opus loudness tags count too.</p>
         </article>
         <article class="frame tool">
-          <i class="ph ph-playlist" aria-hidden="true"></i>
-          <h3>Playlists</h3>
-          <p>Add files or whole folders, reorder, shuffle and repeat. Press <kbd>/</kbd> to filter. Load and save M3U playlists.</p>
-        </article>
-        <article class="frame tool">
-          <i class="ph ph-play-pause" aria-hidden="true"></i>
-          <h3>Media keys</h3>
-          <p>Play, pause and skip with your keyboard's media keys. The track and its cover show in the system's Now Playing (macOS, Linux).</p>
-        </article>
-        <article class="frame tool">
-          <i class="ph ph-vinyl-record" aria-hidden="true"></i>
-          <h3>Tags and cover art</h3>
-          <p>Title, artist, album and cover of the playing track, plus its codec, bitrate and sample rate.</p>
+          <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+          <h3>Filter as you type</h3>
+          <p>Press <kbd>/</kbd> and type a few letters of an artist, album or title. The playlist narrows with every key.</p>
         </article>
         <article class="frame tool">
           <i class="ph ph-waveform" aria-hidden="true"></i>
           <h3>Spectrum or oscilloscope</h3>
-          <p>A spectrum analyzer with falling peak caps, or an oscilloscope. Press <kbd>A</kbd> to switch.</p>
-        </article>
-        <article class="frame tool">
-          <i class="ph ph-headphones" aria-hidden="true"></i>
-          <h3>Follows your speakers</h3>
-          <p>Plug in headphones or switch the output device mid-song, and the music moves along.</p>
-        </article>
-        <article class="frame tool">
-          <i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i>
-          <h3>Picks up where you left off</h3>
-          <p>Playlist, volume, modes and window size are still there the next time you open it.</p>
+          <p>A spectrum analyzer with falling peak caps, or an oscilloscope, drawn right in the grid. Press <kbd>A</kbd> to switch.</p>
         </article>
       </div>
     </section>
@@ -205,7 +194,7 @@
             <span class="chip">File browser</span><span class="zoom ph ph-arrows-out" aria-hidden="true"></span>
             <img src="screenshots/browser.webp" alt="The built-in file browser for adding files and folders" loading="lazy" width="1792" height="1150">
           </button>
-          <figcaption>Add files and folders with the built-in browser</figcaption>
+          <figcaption>Add folders from the keyboard with the built-in browser</figcaption>
         </figure>
         <figure>
           <button class="frame shot" type="button" data-name="Light scheme" aria-label="Enlarge screenshot: light color scheme">
