@@ -1133,10 +1133,7 @@ impl App {
                         Some(i) if i.is_dir => browser::Action::Open(i.path.clone()),
                         _ => browser::Action::None,
                     },
-                    Key::Named(Named::Backspace | Named::Left) => match b.dir.parent() {
-                        Some(p) => browser::Action::Open(p.to_path_buf()),
-                        None => browser::Action::None,
-                    },
+                    Key::Named(Named::Backspace | Named::Left) => browser::parent(&b.dir).map_or(browser::Action::None, browser::Action::Open),
                     Key::Named(Named::Insert) => {
                         b.toggle_mark();
                         browser::Action::None

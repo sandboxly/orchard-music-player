@@ -1,5 +1,10 @@
 //! The file browser dialog (F2 Open, F5 Load): folders and the files the
 //! player can use, marking, quick search by typing.
+//!
+//! On Windows ".." from a drive root (C:\) leads to "Drives", a virtual
+//! folder listing the drives (C:, D:, …), like Orchard Commander's. It is
+//! the empty path here ([`is_drives`]). Drives are only opened, never
+//! marked or added whole, so nothing scans a drive by accident.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -79,7 +84,12 @@ impl Browser {
     }
 
     pub fn has_parent(&self) -> bool {
-        self.dir.parent().is_some()
+        parent(&self.dir).is_some()
+    }
+
+    /// "Drives", or the folder's path.
+    pub fn place(&self) -> String {
+        if is_drives(&self.dir) { DRIVES.to_string() } else { self.dir.display().to_string() }
     }
 
     /// The item at row `r` (`None` for "..").
@@ -89,7 +99,7 @@ impl Browser {
     }
 
     pub fn going_to(&mut self, dir: PathBuf) {
-        self.select = (dir == self.dir.parent().unwrap_or(&self.dir)).then(|| self.dir.clone());
+        self.select = (Some(&dir) == parent(&self.dir).as_ref()).then(|| self.dir.clone());
         self.dir = dir;
         self.items = None;
         self.error = None;
@@ -136,7 +146,7 @@ impl Browser {
     /// Enter on the cursor row.
     pub fn activate(&self) -> Action {
         if self.cursor == 0 && self.has_parent() {
-            return Action::Open(self.dir.parent().unwrap_or(&self.dir).to_path_buf());
+            return parent(&self.dir).map_or(Action::None, Action::Open);
         }
         let Some(item) = self.item(self.cursor) else { return Action::None };
         if !self.marked.is_empty() && self.mode == Mode::Add {
@@ -151,7 +161,7 @@ impl Browser {
 
     /// Add the folder under the cursor, or the one shown.
     pub fn add_folder(&self) -> Action {
-        if self.mode != Mode::Add {
+        if self.mode != Mode::Add || is_drives(&self.dir) {
             return Action::None;
         }
         match self.item(self.cursor) {
@@ -161,7 +171,7 @@ impl Browser {
     }
 
     pub fn toggle_mark(&mut self) {
-        if self.item(self.cursor).is_some() && !self.marked.remove(&self.cursor) {
+        if self.item(self.cursor).is_some() && !is_drives(&self.dir) && !self.marked.remove(&self.cursor) {
             self.marked.insert(self.cursor);
         }
         self.move_cursor(1);
@@ -191,8 +201,60 @@ impl Browser {
     }
 }
 
+/// The name of the virtual folder of drives.
+pub const DRIVES: &str = "Drives";
+
+/// The virtual folder of drives (Windows).
+pub fn is_drives(dir: &Path) -> bool {
+    dir.as_os_str().is_empty()
+}
+
+/// Where ".." leads: the parent folder; from a Windows drive root, Drives.
+pub fn parent(dir: &Path) -> Option<PathBuf> {
+    parent_on(dir, cfg!(windows))
+}
+
+fn parent_on(dir: &Path, windows: bool) -> Option<PathBuf> {
+    if is_drives(dir) {
+        return None;
+    }
+    if windows && drive_letter(dir).is_some() {
+        return Some(PathBuf::new());
+    }
+    dir.parent().map(Path::to_path_buf)
+}
+
+/// "C" for the drive root "C:\" (or "C:", "C:/"); `None` for anything else.
+fn drive_letter(dir: &Path) -> Option<char> {
+    let s = dir.to_str()?;
+    let mut chars = s.chars();
+    let letter = chars.next().filter(char::is_ascii_alphabetic)?;
+    (chars.next() == Some(':') && matches!(chars.as_str(), "" | "\\" | "/")).then(|| letter.to_ascii_uppercase())
+}
+
+/// The drives as folders "C:" … (their roots aren't touched: an empty card
+/// reader can make that hang).
+fn drives() -> Vec<Item> {
+    drive_letters().into_iter().map(|l| Item { name: format!("{l}:"), path: PathBuf::from(format!("{l}:\\")), is_dir: true }).collect()
+}
+
+#[cfg(windows)]
+fn drive_letters() -> Vec<char> {
+    // SAFETY: no arguments; returns a bit mask of the drive letters in use.
+    let mask = unsafe { windows_sys::Win32::Storage::FileSystem::GetLogicalDrives() };
+    (0..26u8).filter(|i| mask & (1 << i) != 0).map(|i| (b'A' + i) as char).collect()
+}
+
+#[cfg(not(windows))]
+fn drive_letters() -> Vec<char> {
+    Vec::new()
+}
+
 /// The folders and usable files in `dir`, folders first, by name (blocking).
 pub fn list(dir: &Path, mode: Mode) -> Result<Vec<Item>, String> {
+    if is_drives(dir) {
+        return Ok(drives());
+    }
     let rd = std::fs::read_dir(dir).map_err(|e| crate::meta::io_reason(&e))?;
     let mut items: Vec<Item> = rd
         .flatten()
@@ -291,6 +353,50 @@ pub fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn drive_roots_lead_to_drives_on_windows() {
+        for root in ["C:\\", "c:", "D:/"] {
+            assert_eq!(parent_on(Path::new(root), true), Some(PathBuf::new()), "{root}");
+        }
+        assert_eq!(drive_letter(Path::new("c:\\")), Some('C'));
+        assert_eq!(drive_letter(Path::new("C:\\Music")), None);
+        assert_eq!(drive_letter(Path::new("/Users")), None);
+        assert_eq!(parent_on(Path::new(""), true), None, "Drives has no parent");
+        assert_eq!(parent_on(Path::new("/"), false), None);
+        assert_eq!(parent_on(Path::new("/Users/me"), false), Some(PathBuf::from("/Users")));
+    }
+
+    fn drives_browser() -> Browser {
+        let mut b = Browser::new(Mode::Add, PathBuf::from("D:\\"));
+        b.going_to(PathBuf::new());
+        let drive = |l: &str| Item { name: format!("{l}:"), path: PathBuf::from(format!("{l}:\\")), is_dir: true };
+        b.listed(Ok(vec![drive("C"), drive("D"), drive("E")]));
+        b
+    }
+
+    #[test]
+    fn drives_lists_the_drives_without_a_way_up() {
+        let b = drives_browser();
+        assert_eq!(b.place(), "Drives");
+        assert!(!b.has_parent());
+        assert_eq!(b.rows(), 3, "no '..'");
+        assert_eq!(b.item(0).map(|i| i.name.as_str()), Some("C:"));
+        // It came up from D:\: the cursor is on D:.
+        assert_eq!(b.cursor, 1);
+    }
+
+    #[test]
+    fn drives_are_opened_never_added_whole() {
+        let mut b = drives_browser();
+        b.toggle_mark();
+        assert!(b.marked.is_empty(), "Space doesn't mark a drive");
+        b.mark_all();
+        assert!(b.marked.is_empty());
+        assert_eq!(b.add_folder(), Action::None, "F3 doesn't add a drive");
+        b.cursor = 1;
+        assert_eq!(b.activate(), Action::Open(PathBuf::from("D:\\")), "Enter opens it");
+    }
 
     #[test]
     fn natural_order() {

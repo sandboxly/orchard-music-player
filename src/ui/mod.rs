@@ -561,7 +561,7 @@ fn draw_modal(app: &App, m: &Modal, f: &mut Frame, ctx: &DrawCtx) {
     settings::form::cover(f, r, ctx);
     match m {
         Modal::Browser(b) => {
-            let title = format!("{} · {}", b.title(), b.dir.display());
+            let title = format!("{} · {}", b.title(), b.place());
             let marked = if b.marked.is_empty() { String::new() } else { format!("{} marked", b.marked.len()) };
             let inner = BoxFrame { title: &title, subtitle: &marked, active: true }.draw(f, r, ctx);
             let list = dialog_list_rect(app).unwrap_or(inner);
