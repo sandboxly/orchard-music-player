@@ -13,7 +13,7 @@ cargo run --release -- [FILE|FOLDER|PLAYLIST.m3u]...                      # run
 cargo test                                                                # all tests
 OMP_TEST_MUSIC=<folder> cargo test                                        # plus real-file decoding tests
 cargo clippy --all-targets -- -D warnings                                 # lint
-cargo run -- --screenshot /tmp/x.png --size 112x38 --dialog help          # look at the UI headless
+cargo run -- --screenshot /tmp/x.png --size 112x38 --dialog settings      # look at the UI headless (also help, themes, scheme-editor, …)
 ```
 
 - `ORCHARD_MUSIC_PLAYER_CONFIG_DIR=<empty dir>` runs with default settings without touching the real config and session playlist.
