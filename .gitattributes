@@ -2,4 +2,6 @@
 # generated file with the committed one on Windows too: no line-ending
 # conversion (some license texts in it have CRLF of their own).
 licenses/THIRD-PARTY-RUST.txt -text
+# Its own entry in that file: with CRLF it sorts differently.
+LICENSE text eol=lf
 packaging/licenses/about.hbs text eol=lf
