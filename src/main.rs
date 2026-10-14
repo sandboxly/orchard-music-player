@@ -101,7 +101,7 @@ impl Platform {
 
     fn draw(&mut self) {
         self.next_frame = None;
-        // Font size changed (⌘+ / ⌘-)?
+        // Font changed (family, style, size, line spacing: settings, ⌘+ / ⌘-)?
         let font = self.app.theme.font.clone();
         if let Some(w) = &mut self.win
             && w.font != font {
@@ -195,6 +195,8 @@ impl ApplicationHandler<UserEvent> for Platform {
                 return;
             }
         };
+        // Light or dark mode, for the color scheme when following the system.
+        self.app.set_system_dark(window.theme() != Some(winit::window::Theme::Light));
         let font = self.app.theme.font.clone();
         let gpu = match WindowRenderer::new(window.clone(), font.clone()) {
             Ok(g) => g,
@@ -264,6 +266,7 @@ impl ApplicationHandler<UserEvent> for Platform {
                 self.sync_size();
             }
             WindowEvent::Occluded(false) => {}
+            WindowEvent::ThemeChanged(theme) => self.app.set_system_dark(theme == winit::window::Theme::Dark),
             WindowEvent::ModifiersChanged(m) => {
                 self.mods = m.state();
                 input = false;
@@ -388,7 +391,7 @@ fn log_panics() {
 }
 
 fn usage() -> &'static str {
-    "usage: orchard-music-player [FILE|FOLDER|PLAYLIST.m3u]...\n       orchard-music-player --version | --self-test\n       orchard-music-player --screenshot OUT.png|OUT.webp [--size COLSxROWS] [--theme NAME] [--dialog help|themes|save|filter|browser] [--music DIR [--play N] [--at SECONDS]] [--vis bars|scope|off]"
+    "usage: orchard-music-player [FILE|FOLDER|PLAYLIST.m3u]...\n       orchard-music-player --version | --self-test\n       orchard-music-player --screenshot OUT.png|OUT.webp [--size COLSxROWS] [--theme NAME] [--dialog help|themes|settings|settings-playback|scheme-editor|color-picker|save|filter|browser] [--music DIR [--play N] [--at SECONDS]] [--vis bars|scope|off]"
 }
 
 /// `--self-test`: decoding and drawing work in this build (for packaging

@@ -17,7 +17,11 @@ renderer (`oc-grid`), same color schemes, same frame look.
 * Tags, stream details and cover art for the playing track.
 * Spectrum analyzer with peak caps, or an oscilloscope.
 * Color schemes shared with Orchard Commander: the built-ins plus every
-  scheme in Commander's `color-schemes/` folder; live preview (T or F9).
+  scheme in Commander's `color-schemes/` folder; live preview (T).
+* Settings (⌘, or F9) like Orchard Commander's: color scheme (optionally
+  one for light and one for dark mode), font, size, line spacing, frames,
+  ReplayGain; a color scheme editor whose schemes Commander sees too.
+  Changes apply and are saved at once.
 * Remembers the playlist, volume, modes and window size between runs.
 
 ## Building
@@ -51,7 +55,8 @@ fetched by cargo at a pinned Commander release:
 | J                         | jump to the playing track              |
 | / or ⌘F                   | filter the playlist (Esc clears)       |
 | G                         | ReplayGain track · album · off         |
-| T                         | color scheme                           |
+| T                         | color scheme, quick pick               |
+| ⌘, or F9                  | settings                               |
 | ⌘O ⌘L ⌘S                  | open · load playlist · save playlist   |
 | ⌘+ ⌘− ⌘0                  | font size                              |
 | F1–F10                    | as on the key bar                      |

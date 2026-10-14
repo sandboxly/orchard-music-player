@@ -1,6 +1,7 @@
 //! Drawing: a pure function of the app state into an `oc_grid::Frame`.
 //! The layout is recomputed, never stored; mouse hit testing uses it too.
 
+pub mod settings;
 pub mod widgets;
 
 use oc_grid::{CellRect, Flags, Frame, ImageId, ImagePlacement, Layer, PxRect, Rgba, Style, elide_right};
@@ -22,7 +23,7 @@ pub const FKEYS: &[(&str, &str)] = &[
     ("6", "Shuffle"),
     ("7", "Repeat"),
     ("8", "Remove"),
-    ("9", "Theme"),
+    ("9", "Settings"),
     ("10", "Quit"),
 ];
 
@@ -530,6 +531,7 @@ fn modal_rect(app: &App, m: &Modal) -> CellRect {
         Modal::Prompt(_) => centered(app, 84, 7),
         Modal::Themes(t) => centered(app, 50, t.schemes.len() as u16 + 4),
         Modal::Help => centered(app, 76, HELP.len() as u16 + 4),
+        Modal::Settings(_) => CellRect::new(0, 0, 0, 0),
     }
 }
 
@@ -550,14 +552,13 @@ pub fn dialog_list_height(app: &App) -> usize {
 
 fn draw_modal(app: &App, m: &Modal, f: &mut Frame, ctx: &DrawCtx) {
     let c = &app.theme.colors;
+    if let Modal::Settings(d) = m {
+        d.draw(app, f, ctx);
+        return;
+    }
     let r = modal_rect(app, m);
-    widgets::punch(f, r, ctx);
-    // A soft shadow along the right and bottom edges.
-    let (cw, ch) = ctx.cell_px;
-    let b = widgets::px(r, ctx);
-    let shade = c.background.with_alpha(170);
-    f.add_rect(PxRect::new(b.right(), b.y + ch / 2.0, cw / 2.0, b.h), shade, Layer::AboveText);
-    f.add_rect(PxRect::new(b.x + cw / 2.0, b.bottom(), b.w - cw / 2.0, ch / 2.0), shade, Layer::AboveText);
+    // Over what is under it, with a soft shadow along the right and bottom edges.
+    settings::form::cover(f, r, ctx);
     match m {
         Modal::Browser(b) => {
             let title = format!("{} · {}", b.title(), b.dir.display());
@@ -642,6 +643,7 @@ fn draw_modal(app: &App, m: &Modal, f: &mut Frame, ctx: &DrawCtx) {
             }
             put(f, inner.col + 1, inner.row + inner.rows - 1, "↑↓ preview · Enter keep · Esc revert", Style::new(c.muted, c.surface), inner.cols.saturating_sub(2));
         }
+        Modal::Settings(_) => {}
         Modal::Help => {
             let inner = BoxFrame { title: "Keys", subtitle: "", active: true }.draw(f, r, ctx);
             for (i, (k, d)) in HELP.iter().enumerate() {
@@ -673,7 +675,8 @@ const HELP: &[(&str, &str)] = &[
     ("G", "ReplayGain track · album · off"),
     ("S  /  R", "Shuffle  /  repeat off · all · one"),
     ("A  / click visualizer", "Bars · oscilloscope · off"),
-    ("T", "Color scheme"),
+    ("T", "Color scheme, quick pick"),
+    ("⌘,  /  F9", "Settings: colors, font, playback"),
     ("⌘O / ⌘L / ⌘S", "Open · load playlist · save playlist"),
     ("⌘+ ⌘− ⌘0", "Font size"),
     ("Media keys", "Play/pause · next · previous"),

@@ -17,6 +17,7 @@ use orchard_music_player::meta::{self, Details, Tags};
 use orchard_music_player::playlist::Entry;
 use orchard_music_player::spectrum;
 use orchard_music_player::ui;
+use orchard_music_player::ui::settings;
 
 const DEMO: &[(&str, &str, &str, f64)] = &[
     ("Boards of Canada", "Roygbiv", "Music Has the Right to Children", 151.0),
@@ -146,7 +147,12 @@ pub fn run(args: &[String]) -> ExitCode {
             app.refilter();
         }
         Some("browser") => open_browser(&mut app, o.music.clone(), o.browse_as.clone()),
-        _ => {}
+        Some(d @ ("settings" | "settings-playback" | "scheme-editor" | "color-picker")) => open_settings(&mut app, d),
+        Some(other) => {
+            eprintln!("screenshot: no dialog '{other}'");
+            return ExitCode::FAILURE;
+        }
+        None => {}
     }
     let mut frame = Frame::new(o.size.0, o.size.1, app.theme.colors.background);
     ui::draw(&app, &mut frame);
@@ -187,6 +193,32 @@ fn open_browser(app: &mut App, dir: Option<PathBuf>, shown: Option<PathBuf>) {
     let h = ui::dialog_list_height(app);
     if let Some(Modal::Browser(b)) = &mut app.modal {
         b.scroll_into_view(h);
+    }
+}
+
+/// The settings dialog: the Appearance page with the scheme list focused,
+/// the Playback page, or the scheme editor (with its color picker) over it.
+fn open_settings(app: &mut App, which: &str) {
+    settings::load_fonts_now(app);
+    app.open_settings();
+    let Some(Modal::Settings(d)) = &mut app.modal else { return };
+    match which {
+        "settings-playback" => {
+            d.page = 1;
+            d.focus = settings::Focus::Ctl("replay_gain");
+        }
+        "settings" => d.focus = settings::Focus::Ctl("scheme"),
+        _ => {}
+    }
+    if which == "scheme-editor" || which == "color-picker" {
+        let Some(Modal::Settings(mut d)) = app.modal.take() else { return };
+        let mut editor = settings::scheme_editor::SchemeEditor::open(app, settings::Slot::Color, false);
+        if which == "color-picker" {
+            // "Headers and titles".
+            editor.open_picker(4);
+        }
+        d.editor = Some(editor);
+        app.modal = Some(Modal::Settings(d));
     }
 }
 

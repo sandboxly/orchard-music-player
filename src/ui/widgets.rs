@@ -41,6 +41,31 @@ pub fn contains(r: CellRect, col: u16, row: u16) -> bool {
     col >= r.col && col < r.col + r.cols && row >= r.row && row < r.row + r.rows
 }
 
+/// The column after `r`.
+pub fn right(r: CellRect) -> u16 {
+    r.col + r.cols
+}
+
+/// The row below `r`.
+pub fn bottom(r: CellRect) -> u16 {
+    r.row + r.rows
+}
+
+pub fn is_empty(r: CellRect) -> bool {
+    r.cols == 0 || r.rows == 0
+}
+
+/// The part of `r` inside `to` (empty, at `to`'s edge, if none).
+pub fn clip(r: CellRect, to: CellRect) -> CellRect {
+    let (col, row) = (r.col.clamp(to.col, right(to)), r.row.clamp(to.row, bottom(to)));
+    CellRect::new(col, row, right(r).min(right(to)).saturating_sub(col), bottom(r).min(bottom(to)).saturating_sub(row))
+}
+
+/// `put`, with an ellipsis if the text is longer than `max`.
+pub fn put_elided(f: &mut Frame, col: u16, row: u16, text: &str, style: Style, max: u16) -> u16 {
+    put(f, col, row, &elide_right(text, max as usize), style, max)
+}
+
 pub fn px(r: CellRect, ctx: &DrawCtx) -> PxRect {
     let (cw, ch) = ctx.cell_px;
     PxRect::new(r.col as f32 * cw, r.row as f32 * ch, r.cols as f32 * cw, r.rows as f32 * ch)
@@ -296,16 +321,44 @@ impl TextField {
         true
     }
 
+    /// Replace the text; the cursor goes to its end.
+    pub fn set_text(&mut self, text: &str) {
+        *self = TextField::new(text);
+    }
+
+    /// Put the cursor at a click on column `col` of the field drawn in `r`.
+    pub fn click(&mut self, r: CellRect, col: u16) {
+        let n = self.text.chars().count();
+        let room = r.cols.saturating_sub(1) as usize;
+        let start = self.cursor.saturating_sub(room);
+        self.cursor = (start + col.saturating_sub(r.col) as usize).min(n);
+    }
+
     /// Draw into one row; the text scrolls to keep the cursor in view.
     pub fn draw(&self, f: &mut Frame, r: CellRect, ctx: &DrawCtx) {
+        self.draw_styled(f, r, ctx, Style::new(ctx.theme.colors.foreground, ctx.theme.colors.cursor_inactive_bg), true);
+    }
+
+    /// A form field (settings, scheme editor): on the window background like
+    /// the other fields there; the cursor only shows while `focused`.
+    pub fn draw_field(&self, f: &mut Frame, r: CellRect, ctx: &DrawCtx, focused: bool) {
+        self.draw_styled(f, r, ctx, Style::new(ctx.theme.colors.foreground, ctx.theme.colors.background), focused);
+    }
+
+    fn draw_styled(&self, f: &mut Frame, r: CellRect, ctx: &DrawCtx, style: Style, focused: bool) {
         let c = &ctx.theme.colors;
-        let style = Style::new(c.foreground, c.cursor_inactive_bg);
+        if is_empty(r) {
+            return;
+        }
         f.fill(r, ' ', style);
         let chars: Vec<char> = self.text.chars().collect();
         let room = r.cols.saturating_sub(1) as usize;
         let start = self.cursor.saturating_sub(room);
         let shown: String = chars[start..].iter().collect();
         put(f, r.col, r.row, &shown, style, r.cols);
+        if !focused {
+            return;
+        }
         let cur_col = r.col + width(&chars[start..self.cursor].iter().collect::<String>());
         f.cursor = Some(oc_grid::Cursor {
             col: cur_col.min(r.col + r.cols.saturating_sub(1)),

@@ -17,10 +17,18 @@ pub fn config_dir() -> PathBuf {
     dirs::config_dir().unwrap_or_else(std::env::temp_dir).join(name)
 }
 
+/// The player's font size unless changed (Commander's is 13: the player's
+/// grid has fewer, larger things in it).
+pub const DEFAULT_FONT_SIZE: i64 = 14;
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
     pub color_scheme: String,
+    /// Use `light_scheme` / `dark_scheme` by the system's light or dark mode.
+    pub follow_system_appearance: bool,
+    pub light_scheme: String,
+    pub dark_scheme: String,
     pub frame_style: String,
     pub font_family: String,
     pub font_style: String,
@@ -44,10 +52,13 @@ impl Default for Settings {
         let a = Appearance::default();
         Settings {
             color_scheme: a.color_scheme,
+            follow_system_appearance: a.follow_system_appearance,
+            light_scheme: a.light_scheme,
+            dark_scheme: a.dark_scheme,
             frame_style: a.frame_style,
             font_family: a.font_family,
             font_style: a.font_style,
-            font_size: 14,
+            font_size: DEFAULT_FONT_SIZE,
             line_spacing: a.line_spacing,
             volume: 0.8,
             shuffle: false,
@@ -65,12 +76,14 @@ impl Settings {
     pub fn appearance(&self) -> Appearance {
         Appearance {
             color_scheme: self.color_scheme.clone(),
+            follow_system_appearance: self.follow_system_appearance,
+            light_scheme: self.light_scheme.clone(),
+            dark_scheme: self.dark_scheme.clone(),
             frame_style: self.frame_style.clone(),
             font_family: self.font_family.clone(),
             font_style: self.font_style.clone(),
             font_size: self.font_size,
             line_spacing: self.line_spacing,
-            ..Appearance::default()
         }
     }
 

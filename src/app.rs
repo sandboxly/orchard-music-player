@@ -64,6 +64,7 @@ pub enum Modal {
     Browser(Browser),
     Prompt(Prompt),
     Themes(ThemePicker),
+    Settings(Box<ui::settings::SettingsDialog>),
     Help,
 }
 
@@ -86,6 +87,14 @@ pub struct App {
     /// False in screenshot mode and tests: nothing is written.
     persist: bool,
     pub theme: Theme,
+    /// Every color scheme (built-ins, then the shared folder's), as last read.
+    pub schemes: Vec<ColorScheme>,
+    /// The color-schemes folder shared with Orchard Commander (tests: a temp dir).
+    pub schemes_dir: PathBuf,
+    /// The system is in dark mode (for following it).
+    pub system_dark: bool,
+    /// Installed fonts, for the settings (looked up when they open).
+    pub fonts: ui::settings::FontInfo,
     pub player: Player,
     pub playlist: Playlist,
     pub now: Option<NowPlaying>,
@@ -125,8 +134,10 @@ impl App {
     pub fn new(wake: Waker, persist: bool, audio: bool) -> App {
         let config_dir = settings::config_dir();
         let settings = if persist { Settings::load(&config_dir) } else { Settings::default() };
-        let scheme = themes::get_scheme(&crate::theme::schemes_dir(), &settings.color_scheme);
-        let theme = Theme::new(&settings.appearance(), scheme);
+        let schemes_dir = crate::theme::schemes_dir();
+        let schemes = themes::all_schemes(&schemes_dir);
+        let system_dark = true;
+        let theme = Theme::new(&settings.appearance(), scheme_in(&schemes, settings.appearance().scheme_name(system_dark)));
         let tasks = Tasks::new(4, wake.clone());
         let player_wake = wake.clone();
         let player = Player::new(move || player_wake(), audio);
@@ -144,6 +155,10 @@ impl App {
             config_dir,
             persist,
             theme,
+            schemes,
+            schemes_dir,
+            system_dark,
+            fonts: Default::default(),
             player,
             playlist: Playlist::default(),
             now: None,
@@ -200,6 +215,17 @@ impl App {
         if !self.persist {
             return;
         }
+        self.save_settings();
+        if let Err(e) = playlist::save_m3u(&self.playlist.entries, &settings::session_file(&self.config_dir)) {
+            log::warn!("saving the session playlist: {e}");
+        }
+    }
+
+    /// Write the settings, with the player's current volume, modes and track.
+    pub fn save_settings(&mut self) {
+        if !self.persist {
+            return;
+        }
         self.settings.volume = self.player.volume();
         self.settings.shuffle = self.shuffle;
         self.settings.repeat = self.repeat.label().into();
@@ -209,9 +235,68 @@ impl App {
         if let Err(e) = self.settings.save(&self.config_dir) {
             log::warn!("saving settings: {e}");
         }
-        if let Err(e) = playlist::save_m3u(&self.playlist.entries, &settings::session_file(&self.config_dir)) {
-            log::warn!("saving the session playlist: {e}");
+    }
+
+    // -- settings ----------------------------------------------------------
+
+    /// Tests: write the settings into `dir`.
+    #[cfg(test)]
+    pub(crate) fn persist_in(&mut self, dir: &Path) {
+        self.config_dir = dir.to_path_buf();
+        self.persist = true;
+    }
+
+    /// Change settings: the player follows at once and they are saved.
+    pub fn update_settings(&mut self, change: impl FnOnce(&mut Settings)) {
+        change(&mut self.settings);
+        self.apply_settings();
+        self.save_settings();
+    }
+
+    /// Make the player look and sound as the settings say (the look, the
+    /// ReplayGain mode); also ends a scheme preview.
+    pub fn apply_settings(&mut self) {
+        let a = self.settings.appearance();
+        self.theme = Theme::new(&a, self.scheme(a.scheme_name(self.system_dark)));
+        let gain = GainMode::from_label(&self.settings.replay_gain);
+        if gain != self.gain_mode {
+            self.gain_mode = gain;
+            self.player.set_gain_mode(gain);
         }
+    }
+
+    /// The color scheme with this name (as last read), or the default one.
+    pub fn scheme(&self, name: &str) -> ColorScheme {
+        scheme_in(&self.schemes, name)
+    }
+
+    /// Read the color-schemes folder again (Orchard Commander may have saved one).
+    pub fn refresh_schemes(&mut self) {
+        self.schemes = themes::all_schemes(&self.schemes_dir);
+    }
+
+    /// Show `scheme` on the whole player without choosing it (the editor's preview).
+    pub fn preview_scheme(&mut self, scheme: ColorScheme) {
+        self.theme = Theme::new(&self.settings.appearance(), scheme);
+    }
+
+    /// The system switched between light and dark mode.
+    pub fn set_system_dark(&mut self, dark: bool) {
+        if dark != self.system_dark {
+            self.system_dark = dark;
+            let editing = matches!(&self.modal, Some(Modal::Settings(d)) if d.editor.is_some());
+            if self.settings.follow_system_appearance && !editing {
+                self.apply_settings();
+            }
+        }
+    }
+
+    pub fn open_settings(&mut self) {
+        ui::settings::open(self);
+    }
+
+    pub fn set_gain_mode(&mut self, mode: GainMode) {
+        self.update_settings(|s| s.replay_gain = mode.label().into());
     }
 
     // -- frame loop ------------------------------------------------------
@@ -737,8 +822,7 @@ impl App {
     }
 
     pub fn cycle_gain(&mut self) {
-        self.gain_mode = self.gain_mode.next();
-        self.player.set_gain_mode(self.gain_mode);
+        self.set_gain_mode(self.gain_mode.next());
         self.toast(format!("ReplayGain: {}", self.gain_mode.label()), false);
     }
 
@@ -797,7 +881,8 @@ impl App {
     }
 
     pub fn open_theme_picker(&mut self) {
-        let schemes = crate::theme::all_schemes();
+        self.refresh_schemes();
+        let schemes = self.schemes.clone();
         let cursor = schemes.iter().position(|s| s.name == self.theme.scheme.name).unwrap_or(0);
         self.modal = Some(Modal::Themes(ThemePicker {
             schemes,
@@ -807,16 +892,24 @@ impl App {
         }));
     }
 
+    /// Use `scheme` for the current mode (the scheme setting, or the light
+    /// or dark one while following the system); saved when the picker closes.
     pub fn apply_scheme(&mut self, scheme: ColorScheme) {
-        self.settings.color_scheme = scheme.name.clone();
+        let a = self.settings.appearance();
+        let slot = match a.scheme_setting(self.system_dark) {
+            "light_scheme" => ui::settings::Slot::Light,
+            "dark_scheme" => ui::settings::Slot::Dark,
+            _ => ui::settings::Slot::Color,
+        };
+        slot.set(&mut self.settings, &scheme.name);
         self.theme = Theme::new(&self.settings.appearance(), scheme);
     }
 
     /// ⌘+ / ⌘- / ⌘0.
     pub fn zoom(&mut self, step: i64) {
-        self.settings.font_size = if step == 0 { 14 } else { (self.settings.font_size + step).clamp(8, 40) };
-        let scheme = self.theme.scheme.clone();
-        self.theme = Theme::new(&self.settings.appearance(), scheme);
+        let (lo, hi) = themes::FONT_SIZE_RANGE;
+        let size = if step == 0 { settings::DEFAULT_FONT_SIZE } else { (self.settings.font_size + step).clamp(lo, hi) };
+        self.update_settings(|s| s.font_size = size);
     }
 
     // -- input -----------------------------------------------------------
@@ -837,6 +930,7 @@ impl App {
                 Key::Char('s') => self.open_save_prompt(),
                 Key::Char('l') => self.open_browser(browser::Mode::LoadPlaylist),
                 Key::Char('q') => self.quit = true,
+                Key::Char(',') => self.open_settings(),
                 Key::Char('=' | '+') => self.zoom(1),
                 Key::Char('-') => self.zoom(-1),
                 Key::Char('0') => self.zoom(0),
@@ -934,7 +1028,7 @@ impl App {
             6 => self.toggle_shuffle(),
             7 => self.cycle_repeat(),
             8 => self.remove_selected(),
-            9 => self.open_theme_picker(),
+            9 => self.open_settings(),
             10 => self.quit = true,
             _ => {}
         }
@@ -944,6 +1038,7 @@ impl App {
         let Some(modal) = self.modal.take() else { return };
         let list_h = ui::dialog_list_height(self);
         self.modal = match modal {
+            Modal::Settings(mut d) => d.handle_key(self, ev).then_some(Modal::Settings(d)),
             Modal::Help => match &ev.key {
                 Key::Named(Named::Escape | Named::Enter | Named::F(1) | Named::F(10)) => None,
                 _ if ev.typed() == Some("?") || ev.typed() == Some("q") => None,
@@ -965,11 +1060,14 @@ impl App {
                 let before = t.cursor;
                 let close = match &ev.key {
                     Key::Named(Named::Escape) => {
-                        let orig = themes::get_scheme(&crate::theme::schemes_dir(), &t.original);
+                        let orig = self.scheme(&t.original);
                         self.apply_scheme(orig);
                         true
                     }
-                    Key::Named(Named::Enter | Named::F(9)) => true,
+                    Key::Named(Named::Enter) => {
+                        self.save_settings();
+                        true
+                    }
                     Key::Named(Named::Up) => {
                         t.cursor = t.cursor.saturating_sub(1);
                         false
@@ -1181,6 +1279,12 @@ impl App {
     }
 
     fn modal_mouse(&mut self, ev: &MouseEvent) {
+        if let Some(Modal::Settings(mut d)) = self.modal.take() {
+            if d.handle_mouse(self, ev) {
+                self.modal = Some(Modal::Settings(d));
+            }
+            return;
+        }
         let Some(list) = ui::dialog_list_rect(self) else { return };
         let hit = ui::widgets::contains(list, ev.col, ev.row);
         match (&mut self.modal, ev.kind) {
@@ -1208,6 +1312,7 @@ impl App {
                     self.apply_scheme(s);
                     if close {
                         self.modal = None;
+                        self.save_settings();
                     }
                 }
             }
@@ -1215,6 +1320,16 @@ impl App {
             _ => {}
         }
     }
+}
+
+/// The scheme named `name` in `schemes`, or the default one.
+fn scheme_in(schemes: &[ColorScheme], name: &str) -> ColorScheme {
+    schemes
+        .iter()
+        .find(|s| s.name == name)
+        .or_else(|| themes::builtin_scheme(themes::DEFAULT_SCHEME))
+        .cloned()
+        .unwrap_or_else(|| Theme::default_dark().scheme)
 }
 
 fn expand_tilde(text: &str) -> PathBuf {
