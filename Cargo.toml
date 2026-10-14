@@ -1,0 +1,47 @@
+[package]
+name = "orchard-music-player"
+version = "1.0.0"
+edition = "2024"
+license = "MIT"
+authors = ["Stephan Lengl <lengl.stephan@gmail.com>"]
+rust-version = "1.90"
+description = "A themeable, keyboard-friendly music player for your own music files"
+
+[[bin]]
+name = "orchard-music-player"
+path = "src/main.rs"
+
+[dependencies]
+# The character-grid renderer Orchard Commander draws into (wgpu + winit).
+# Shared with Orchard Commander, pinned to a release tag (for a local change
+# to them, override with a [patch] section pointing at a checkout).
+oc-grid = { git = "https://github.com/sandboxly/orchard-commander", tag = "v2.0.1" }
+# Color schemes, frame styles and the shared color-schemes folder.
+oc-config = { git = "https://github.com/sandboxly/orchard-commander", tag = "v2.0.1" }
+# Audio tag reading (the multi-rename tool's AudioTags provider).
+oc-rename = { git = "https://github.com/sandboxly/orchard-commander", tag = "v2.0.1" }
+symphonia = { version = "0.6", features = ["all"] }
+# Opus (libopus, built from the bundled source).
+symphonia-adapter-libopus = "0.3"
+# Media keys and the system's Now Playing (MPRemoteCommandCenter, MPRIS, SMTC).
+souvlaki = { version = "0.8", default-features = false, features = ["use_zbus"] }
+cpal = "0.18.2"
+rustfft = "6.4"
+# Same version as oc-rename: stream properties and cover art.
+lofty = "0.24"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "bmp", "webp"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+dirs = "6.0"
+log = "0.4"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[profile.dev.package."*"]
+opt-level = 2

@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="vinyl" cx="42%" cy="36%" r="70%">
+      <stop offset="0" stop-color="#4a4038"/>
+      <stop offset="0.55" stop-color="#211c19"/>
+      <stop offset="1" stop-color="#0d0b0a"/>
+    </radialGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.32"/>
+      <stop offset="0.35" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.62" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.8" stop-color="#fff" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="label" cx="40%" cy="32%" r="75%">
+      <stop offset="0" stop-color="#ffe066"/>
+      <stop offset="0.6" stop-color="#ffb21e"/>
+      <stop offset="1" stop-color="#f08a00"/>
+    </radialGradient>
+    <radialGradient id="apple" cx="35%" cy="30%" r="70%">
+      <stop offset="0" stop-color="#ffd27a"/>
+      <stop offset="0.35" stop-color="#ff7a2e"/>
+      <stop offset="1" stop-color="#d9261c"/>
+    </radialGradient>
+    <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9be15d"/>
+      <stop offset="1" stop-color="#1e8a3a"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#5a2a00" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <!-- the record -->
+  <g filter="url(#shadow)">
+    <circle cx="512" cy="512" r="430" fill="url(#vinyl)"/>
+  </g>
+  <g fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="3">
+    <circle cx="512" cy="512" r="400"/><circle cx="512" cy="512" r="370"/>
+    <circle cx="512" cy="512" r="340"/><circle cx="512" cy="512" r="312"/>
+    <circle cx="512" cy="512" r="286"/><circle cx="512" cy="512" r="262"/>
+  </g>
+  <g fill="none" stroke="#fff" stroke-opacity="0.06" stroke-width="2">
+    <circle cx="512" cy="512" r="385"/><circle cx="512" cy="512" r="355"/>
+    <circle cx="512" cy="512" r="326"/><circle cx="512" cy="512" r="299"/>
+  </g>
+  <circle cx="512" cy="512" r="430" fill="url(#sheen)"/>
+  <!-- the label -->
+  <g filter="url(#soft)">
+    <circle cx="512" cy="512" r="232" fill="url(#label)"/>
+  </g>
+  <circle cx="512" cy="512" r="232" fill="none" stroke="#fff3c4" stroke-opacity="0.6" stroke-width="5"/>
+  <!-- the tree -->
+  <g>
+    <path d="M512 700 C 505 640, 500 600, 512 555 C 520 520, 480 480, 430 470 M512 590 C 530 540, 560 515, 610 500 M507 560 C 500 520, 520 470, 512 420"
+          fill="none" stroke="#6b3a1e" stroke-width="22" stroke-linecap="round"/>
+    <g fill="url(#leaf)" stroke="#16632b" stroke-width="3">
+      <path d="M512 420 C 470 380, 470 330, 512 300 C 554 330, 554 380, 512 420 Z"/>
+      <path d="M430 470 C 380 470, 345 440, 340 400 C 385 395, 420 420, 430 470 Z"/>
+      <path d="M610 500 C 650 470, 690 470, 712 495 C 690 530, 645 530, 610 500 Z"/>
+      <path d="M470 445 C 440 410, 445 370, 470 350 C 500 380, 495 420, 470 445 Z"/>
+      <path d="M560 455 C 570 410, 605 385, 640 390 C 635 430, 600 455, 560 455 Z"/>
+      <path d="M455 520 C 420 535, 385 525, 370 500 C 400 480, 440 490, 455 520 Z"/>
+    </g>
+    <g fill="url(#apple)" stroke="#a5170f" stroke-width="3">
+      <circle cx="560" cy="560" r="44"/>
+      <circle cx="430" cy="545" r="36"/>
+      <circle cx="600" cy="430" r="32"/>
+    </g>
+    <g fill="#fff" fill-opacity="0.55">
+      <ellipse cx="545" cy="540" rx="14" ry="9"/>
+      <ellipse cx="419" cy="530" rx="11" ry="7"/>
+      <ellipse cx="590" cy="417" rx="10" ry="6"/>
+    </g>
+  </g>
+  <!-- spindle hole -->
+  <circle cx="512" cy="512" r="20" fill="#0d0b0a"/>
+  <circle cx="512" cy="512" r="20" fill="none" stroke="#c97600" stroke-width="4"/>
+</svg>
