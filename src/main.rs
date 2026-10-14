@@ -342,7 +342,7 @@ impl ApplicationHandler<UserEvent> for Platform {
 }
 
 fn usage() -> &'static str {
-    "usage: orchard-music-player [FILE|FOLDER|PLAYLIST.m3u]...\n       orchard-music-player --version | --self-test\n       orchard-music-player --screenshot OUT.png [--size COLSxROWS] [--theme NAME]"
+    "usage: orchard-music-player [FILE|FOLDER|PLAYLIST.m3u]...\n       orchard-music-player --version | --self-test\n       orchard-music-player --screenshot OUT.png|OUT.webp [--size COLSxROWS] [--theme NAME] [--dialog help|themes|save|filter|browser] [--music DIR [--play N] [--at SECONDS]] [--vis bars|scope|off]"
 }
 
 /// `--self-test`: decoding and drawing work in this build (for packaging

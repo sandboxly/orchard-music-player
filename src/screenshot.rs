@@ -1,16 +1,21 @@
-//! `--screenshot OUT.png`: a demo state drawn headlessly (docs, checking
-//! the look without a window or audio device).
+//! `--screenshot OUT.png|OUT.webp`: a state drawn headlessly (docs, checking
+//! the look without a window or audio device). Either a built-in demo, or
+//! real files with `--music DIR`: their tags, the playing track's details and
+//! cover, and the visualizer fed with its decoded audio at `--at SECONDS`.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use oc_grid::{Frame, HeadlessRenderer};
 use orchard_music_player::App;
-use orchard_music_player::app::NowPlaying;
-use orchard_music_player::audio::State;
-use orchard_music_player::meta::{Details, Tags};
+use orchard_music_player::app::{Modal, NowPlaying};
+use orchard_music_player::audio::{self, State};
+use orchard_music_player::browser::{self, Browser};
+use orchard_music_player::meta::{self, Details, Tags};
 use orchard_music_player::playlist::Entry;
+use orchard_music_player::spectrum;
 use orchard_music_player::ui;
 
 const DEMO: &[(&str, &str, &str, f64)] = &[
@@ -30,33 +35,86 @@ const DEMO: &[(&str, &str, &str, f64)] = &[
     ("Zero 7", "Destiny", "Simple Things", 335.0),
 ];
 
+/// The cover's image id in the renderer.
+const COVER_ID: u64 = 1;
+/// Frames of audio the analyzer sees before the shot, so the peak caps
+/// hang above the bars as they would.
+const WARMUP_FRAMES: usize = 40;
+const FPS: f64 = 60.0;
+
+#[derive(Default)]
+struct Options {
+    size: (u16, u16),
+    theme: Option<String>,
+    modal: Option<String>,
+    music: Option<PathBuf>,
+    /// 1-based playlist position of the playing track.
+    play: usize,
+    at: f64,
+    vis: Option<spectrum::Mode>,
+    filter: Option<String>,
+    /// 1-based playlist position of the selection.
+    cursor: Option<usize>,
+    /// The folder the file browser shows in its title (it lists `music`).
+    browse_as: Option<PathBuf>,
+    shuffle: bool,
+    volume: f32,
+}
+
+fn parse(args: &[String]) -> Options {
+    let mut o = Options { size: (112, 38), play: 1, at: 60.0, volume: 0.72, ..Options::default() };
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--size" => {
+                if let Some((c, r)) = it.next().and_then(|s| s.split_once('x')) {
+                    o.size = (c.parse().unwrap_or(o.size.0), r.parse().unwrap_or(o.size.1));
+                }
+            }
+            "--theme" => o.theme = it.next().cloned(),
+            "--dialog" => o.modal = it.next().cloned(),
+            "--music" => o.music = it.next().map(PathBuf::from),
+            "--play" => o.play = it.next().and_then(|s| s.parse().ok()).unwrap_or(1),
+            "--at" => o.at = it.next().and_then(|s| s.parse().ok()).unwrap_or(60.0),
+            "--vis" => o.vis = it.next().map(|s| spectrum::Mode::from_label(s)),
+            "--filter" => o.filter = it.next().cloned(),
+            "--cursor" => o.cursor = it.next().and_then(|s| s.parse().ok()),
+            "--browse-as" => o.browse_as = it.next().map(PathBuf::from),
+            "--shuffle" => o.shuffle = true,
+            "--volume" => o.volume = it.next().and_then(|s| s.parse().ok()).unwrap_or(0.72),
+            _ => {}
+        }
+    }
+    o
+}
+
 pub fn run(args: &[String]) -> ExitCode {
     let Some(out) = args.first().map(PathBuf::from) else {
         eprintln!("--screenshot needs an output file");
         return ExitCode::FAILURE;
     };
-    let mut size = (112u16, 38u16);
-    let mut theme: Option<String> = None;
-    let mut modal: Option<String> = None;
-    let mut it = args[1..].iter();
-    while let Some(a) = it.next() {
-        match a.as_str() {
-            "--size" => {
-                if let Some((c, r)) = it.next().and_then(|s| s.split_once('x')) {
-                    size = (c.parse().unwrap_or(size.0), r.parse().unwrap_or(size.1));
-                }
-            }
-            "--theme" => theme = it.next().cloned(),
-            "--dialog" => modal = it.next().cloned(),
-            _ => {}
-        }
-    }
+    let o = parse(&args[1..]);
     let mut app = App::new(Arc::new(|| {}), false, false);
-    if let Some(t) = theme {
-        let s = oc_config::themes::get_scheme(&orchard_music_player::theme::schemes_dir(), &t);
+    if let Some(t) = &o.theme {
+        let s = oc_config::themes::get_scheme(&orchard_music_player::theme::schemes_dir(), t);
         app.apply_scheme(s);
     }
-    demo(&mut app);
+    if let Some(v) = o.vis {
+        app.vis = v;
+    }
+    let music = match &o.music {
+        Some(dir) => match real(&mut app, dir, &o) {
+            Ok(m) => Some(m),
+            Err(e) => {
+                eprintln!("screenshot: {e}");
+                return ExitCode::FAILURE;
+            }
+        },
+        None => {
+            demo(&mut app);
+            None
+        }
+    };
 
     let mut r = match HeadlessRenderer::new(app.theme.font.clone(), 2.0) {
         Ok(r) => r,
@@ -66,30 +124,139 @@ pub fn run(args: &[String]) -> ExitCode {
         }
     };
     let m = r.renderer().metrics();
-    app.resized(size.0, size.1, (m.width as f32, m.height as f32));
-    fake_spectrum(&mut app);
-    match modal.as_deref() {
-        Some("help") => app.modal = Some(orchard_music_player::app::Modal::Help),
+    app.resized(o.size.0, o.size.1, (m.width as f32, m.height as f32));
+    match &music {
+        Some(audio) => real_spectrum(&mut app, audio),
+        None => fake_spectrum(&mut app),
+    }
+    if let Some(cover) = app.now.as_ref().and_then(|n| n.details.as_ref()).and_then(|d| d.cover.as_ref())
+        && let Err(e) = r.renderer().set_image(ui::cover_image(COVER_ID), cover.width, cover.height, &cover.rgba)
+    {
+        eprintln!("cover: {e}");
+    }
+    match o.modal.as_deref() {
+        Some("help") => app.modal = Some(Modal::Help),
         Some("themes") => app.open_theme_picker(),
         Some("save") => app.open_save_prompt(),
         Some("filter") => {
             app.start_filter();
             if let Some(f) = &mut app.filter {
-                f.field = orchard_music_player::ui::widgets::TextField::new("ai");
+                f.field = ui::widgets::TextField::new(o.filter.as_deref().unwrap_or("ai"));
             }
             app.refilter();
         }
+        Some("browser") => open_browser(&mut app, o.music.clone(), o.browse_as.clone()),
         _ => {}
     }
-    let mut frame = Frame::new(size.0, size.1, app.theme.colors.background);
+    let mut frame = Frame::new(o.size.0, o.size.1, app.theme.colors.background);
     ui::draw(&app, &mut frame);
-    match r.render(&frame).and_then(|img| img.save_png(&out)) {
+    let saved = r.render(&frame).map_err(|e| e.to_string()).and_then(|img| save(&img, &out));
+    match saved {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("screenshot: {e}");
             ExitCode::FAILURE
         }
     }
+}
+
+/// PNG, or lossless WebP for a `.webp` name.
+fn save(img: &oc_grid::RgbaImage, out: &Path) -> Result<(), String> {
+    let webp = out.extension().is_some_and(|e| e.eq_ignore_ascii_case("webp"));
+    if !webp {
+        return img.save_png(out).map_err(|e| e.to_string());
+    }
+    let buf = image::RgbaImage::from_raw(img.width, img.height, img.data.clone()).ok_or("bad image size")?;
+    buf.save_with_format(out, image::ImageFormat::WebP).map_err(|e| e.to_string())
+}
+
+/// The file browser on `dir` (the music folder), listed right away; its
+/// title says `shown` if given (a tidy path for docs).
+fn open_browser(app: &mut App, dir: Option<PathBuf>, shown: Option<PathBuf>) {
+    let dir = dir.or_else(dirs::audio_dir).or_else(dirs::home_dir).unwrap_or_else(|| PathBuf::from("/"));
+    let dir = dir.canonicalize().unwrap_or(dir);
+    let mode = browser::Mode::Add;
+    let mut b = Browser::new(mode, dir.clone());
+    b.going_to(dir.clone());
+    b.listed(browser::list(&dir, mode));
+    b.move_cursor(2);
+    if let Some(shown) = shown {
+        b.dir = shown;
+    }
+    app.modal = Some(Modal::Browser(b));
+    let h = ui::dialog_list_height(app);
+    if let Some(Modal::Browser(b)) = &mut app.modal {
+        b.scroll_into_view(h);
+    }
+}
+
+/// Decoded audio of the playing track, ending at the shot's moment.
+struct Audio {
+    samples: Vec<f32>,
+    rate: u32,
+}
+
+/// The files under `dir` as the app adds them, with their tags; the
+/// `o.play`th plays at `o.at` seconds.
+fn real(app: &mut App, dir: &Path, o: &Options) -> Result<Audio, String> {
+    let dir = dir.canonicalize().map_err(|e| format!("{}: {}", dir.display(), meta::io_reason(&e)))?;
+    let mut entries = browser::expand(std::slice::from_ref(&dir));
+    if entries.is_empty() {
+        return Err(format!("no audio files in {}", dir.display()));
+    }
+    for e in &mut entries {
+        e.tags = Some(meta::read_tags(&e.path));
+    }
+    app.playlist.entries = entries;
+    let cur = o.play.clamp(1, app.playlist.len()) - 1;
+    app.playlist.current = Some(cur);
+    app.playlist.mark_played(cur);
+    app.playlist.cursor = o.cursor.map_or(cur, |c| c.clamp(1, app.playlist.len()) - 1);
+    app.settings.last_dir = Some(dir.clone());
+
+    let e = &app.playlist.entries[cur];
+    let path = e.path.clone();
+    let tags = e.tags.clone().unwrap_or_default();
+    let rate = app.player.rate();
+    let span = spectrum::FFT_SIZE.max(audio::SCOPE_LEN) + (WARMUP_FRAMES as f64 * rate as f64 / FPS) as usize;
+    let from = (o.at - span as f64 / rate as f64).max(0.0);
+    let (samples, info) = audio::decode_mono(&path, from, span, rate, app.gain_mode)?;
+    if samples.len() < spectrum::FFT_SIZE {
+        return Err(format!("{} is shorter than {} s", path.display(), o.at));
+    }
+    let details: Details = meta::read_details(&path);
+    app.now = Some(NowPlaying {
+        path,
+        duration: tags.duration.or(info.duration),
+        tags,
+        details: Some(details),
+        codec: info.codec,
+        cover_id: COVER_ID,
+        gain: Some(info.gain),
+    });
+    app.fake_state = Some(State::Playing);
+    app.fake_position = Some(from + samples.len() as f64 / rate as f64);
+    app.shuffle = o.shuffle;
+    app.player.set_volume(o.volume);
+    Ok(Audio { samples, rate })
+}
+
+/// The analyzer over the last frames of real audio, as the app runs it at
+/// 60 fps; the scope gets the latest samples.
+fn real_spectrum(app: &mut App, audio: &Audio) {
+    let count = ui::bar_count(app);
+    let step = (audio.rate as f64 / FPS) as usize;
+    let t0 = Instant::now();
+    let n = audio.samples.len();
+    for k in 0..=WARMUP_FRAMES {
+        let end = n - (WARMUP_FRAMES - k) * step;
+        if end < spectrum::FFT_SIZE {
+            continue;
+        }
+        let now = t0 + Duration::from_secs_f64(k as f64 / FPS);
+        app.analyzer.update(Some(&audio.samples[..end]), audio.rate, count, now);
+    }
+    app.player.fill_scope(&audio.samples);
 }
 
 fn demo(app: &mut App) {

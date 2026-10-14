@@ -376,6 +376,16 @@ impl Player {
         let _ = self.cmds.send(then(&mut b));
     }
 
+    /// Screenshots: `samples` (mono) as the latest played audio.
+    pub fn fill_scope(&self, samples: &[f32]) {
+        let mut sc = self.shared.scope.lock().unwrap();
+        for &s in samples.iter().rev().take(SCOPE_LEN).rev() {
+            let w = sc.write;
+            sc.samples[w] = s;
+            sc.write = (w + 1) % SCOPE_LEN;
+        }
+    }
+
     fn clear_scope(&self) {
         let mut sc = self.shared.scope.lock().unwrap();
         sc.samples.fill(0.0);
@@ -468,6 +478,27 @@ fn open(path: &Path, out_rate: u32) -> Result<(Source, TrackInfo), String> {
         },
         info,
     ))
+}
+
+/// Screenshots: `frames` mono samples of `path` from `from` seconds on, at
+/// `rate` with `mode`'s gain (what the visualizer would get), and what the
+/// decoder learned about the track.
+pub fn decode_mono(path: &Path, from: f64, frames: usize, rate: u32, mode: GainMode) -> Result<(Vec<f32>, TrackInfo), String> {
+    let (mut src, info) = open(path, rate)?;
+    if from > 0.0 {
+        src.seek(from);
+    }
+    let mut out = Vec::with_capacity(frames);
+    let mut chunk = Vec::new();
+    while out.len() < frames {
+        chunk.clear();
+        if !src.decode(1, mode, &mut chunk)? {
+            break;
+        }
+        out.extend_from_slice(&chunk);
+    }
+    out.truncate(frames);
+    Ok((out, info))
 }
 
 impl Source {
