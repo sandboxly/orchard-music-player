@@ -54,6 +54,9 @@ struct Platform {
     /// stream of other events (mouse moves) can't keep pushing it back.
     next_frame: Option<Instant>,
     media: Option<orchard_music_player::media::MediaKeys>,
+    /// `ORCHARD_MUSIC_PLAYER_EXIT_AFTER_START=1`: quit after the first frame
+    /// (CI starts the real app on every platform this way).
+    exit_after_start: bool,
 }
 
 const DOUBLE_CLICK: Duration = Duration::from_millis(400);
@@ -204,7 +207,7 @@ impl ApplicationHandler<UserEvent> for Platform {
         let (cols, rows) = gpu.grid_size();
         let frame = Frame::new(cols, rows, self.app.theme.colors.background);
         self.win = Some(Win { window, gpu, frame, font, cover: 0 });
-        self.media = orchard_music_player::media::MediaKeys::new(self.app.tasks.clone());
+        self.media = orchard_music_player::media::MediaKeys::new(self.app.tasks.clone(), window_handle(&self.win));
         self.sync_size();
         let startup = std::mem::take(&mut self.startup);
         if !startup.is_empty() {
@@ -239,6 +242,12 @@ impl ApplicationHandler<UserEvent> for Platform {
             WindowEvent::RedrawRequested => {
                 self.draw();
                 input = false;
+                if std::mem::take(&mut self.exit_after_start) {
+                    // Packaging checks: the window opened and drew, media keys included.
+                    println!("opened, drew a frame and closed");
+                    self.quit(el);
+                    return;
+                }
             }
             WindowEvent::Resized(PhysicalSize { width, height }) => {
                 if let Some(w) = &mut self.win {
@@ -346,6 +355,38 @@ impl ApplicationHandler<UserEvent> for Platform {
     }
 }
 
+/// The native window handle media keys need on Windows (`None` elsewhere).
+fn window_handle(win: &Option<Win>) -> Option<*mut std::ffi::c_void> {
+    #[cfg(windows)]
+    {
+        use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        let handle = win.as_ref()?.window.window_handle().ok()?;
+        match handle.as_raw() {
+            RawWindowHandle::Win32(h) => Some(h.hwnd.get() as *mut std::ffi::c_void),
+            _ => None,
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = win;
+        None
+    }
+}
+
+/// Panics also go to `crash.log` in the config folder: on Windows the app
+/// has no console, so a crash would leave no trace otherwise.
+fn log_panics() {
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let dir = orchard_music_player::settings::config_dir();
+        let _ = std::fs::create_dir_all(&dir);
+        let backtrace = std::backtrace::Backtrace::force_capture();
+        let text = format!("Orchard Music Player {} crashed: {info}\n{backtrace}\n", env!("CARGO_PKG_VERSION"));
+        let _ = std::fs::write(dir.join("crash.log"), text);
+        default(info);
+    }));
+}
+
 fn usage() -> &'static str {
     "usage: orchard-music-player [FILE|FOLDER|PLAYLIST.m3u]...\n       orchard-music-player --version | --self-test\n       orchard-music-player --screenshot OUT.png|OUT.webp [--size COLSxROWS] [--theme NAME] [--dialog help|themes|save|filter|browser] [--music DIR [--play N] [--at SECONDS]] [--vis bars|scope|off]"
 }
@@ -395,6 +436,7 @@ fn attach_parent_console() {
 fn main() -> ExitCode {
     #[cfg(windows)]
     attach_parent_console();
+    log_panics();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "-h" || a == "--help") {
         println!("{}", usage());
@@ -436,6 +478,7 @@ fn main() -> ExitCode {
         startup,
         next_frame: None,
         media: None,
+        exit_after_start: std::env::var_os("ORCHARD_MUSIC_PLAYER_EXIT_AFTER_START").is_some_and(|v| v == "1"),
     };
     match event_loop.run_app(&mut platform) {
         Ok(()) => ExitCode::SUCCESS,

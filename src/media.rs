@@ -36,20 +36,30 @@ pub struct MediaKeys {
 const SEEK_STEP: f64 = 10.0;
 
 impl MediaKeys {
-    /// `None` where the platform offers no media controls (or Windows,
-    /// which needs the window handle).
-    pub fn new(tasks: Tasks<App>) -> Option<MediaKeys> {
-        let config = PlatformConfig {
-            display_name: "Orchard Music Player",
-            dbus_name: "orchard_music_player",
-            hwnd: None,
-        };
-        let mut controls = MediaControls::new(config).map_err(|e| log::info!("media keys: {e:?}")).ok()?;
-        controls
-            .attach(move |event| tasks.post(move |app: &mut App| app.media_event(event)))
-            .map_err(|e| log::info!("media keys: {e:?}"))
-            .ok()?;
-        Some(MediaKeys { controls, shown: Shown::default(), cover_file: None })
+    /// `None` where the platform offers no media controls. Windows needs
+    /// the window's handle (`hwnd`; souvlaki panics without one). Media keys
+    /// are a convenience: whatever goes wrong here, the player goes on.
+    pub fn new(tasks: Tasks<App>, hwnd: Option<*mut std::ffi::c_void>) -> Option<MediaKeys> {
+        if cfg!(windows) && hwnd.is_none() {
+            log::info!("media keys: no window handle");
+            return None;
+        }
+        let made = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            let config = PlatformConfig { display_name: "Orchard Music Player", dbus_name: "orchard_music_player", hwnd };
+            let mut controls = MediaControls::new(config).map_err(|e| log::info!("media keys: {e:?}")).ok()?;
+            controls
+                .attach(move |event| tasks.post(move |app: &mut App| app.media_event(event)))
+                .map_err(|e| log::info!("media keys: {e:?}"))
+                .ok()?;
+            Some(controls)
+        }));
+        match made {
+            Ok(controls) => Some(MediaKeys { controls: controls?, shown: Shown::default(), cover_file: None }),
+            Err(_) => {
+                log::warn!("media keys: setting them up failed");
+                None
+            }
+        }
     }
 
     /// Tell the system about the track and state, if they changed.

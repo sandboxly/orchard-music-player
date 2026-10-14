@@ -32,7 +32,7 @@ runs:
         # Run time (tests, --self-test): winit's keyboard libraries, a
         # software GPU (Mesa lavapipe/llvmpipe) for the renderer, a font.
         sudo apt-get install -y --no-install-recommends \
-          pkg-config libasound2-dev \
+          pkg-config libasound2-dev xvfb xauth \
           libxkbcommon0 libxkbcommon-x11-0 libx11-xcb1 libwayland-client0 \
           libvulkan1 mesa-vulkan-drivers libegl1 libegl-mesa0 libgl1-mesa-dri \
           fontconfig fonts-dejavu-core

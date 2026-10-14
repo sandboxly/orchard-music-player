@@ -62,6 +62,22 @@ jobs:
           "$exe" --version
           "$exe" --self-test
 
+      # The real app: window, GPU surface, media keys; quits after the first
+      # frame. The self-test alone can't catch a crash at startup.
+      - name: Start the app (window, first frame, quit)
+        timeout-minutes: 3
+        env:
+          ORCHARD_MUSIC_PLAYER_EXIT_AFTER_START: "1"
+        run: |
+          export ORCHARD_MUSIC_PLAYER_CONFIG_DIR="$RUNNER_TEMP/omp-config"
+          exe=target/release/orchard-music-player
+          case "$RUNNER_OS" in
+            Windows) "$exe.exe" ;;
+            Linux) xvfb-run -a "$exe" ;;
+            *) "$exe" ;;
+          esac
+          if [ -f "$ORCHARD_MUSIC_PLAYER_CONFIG_DIR/crash.log" ]; then cat "$ORCHARD_MUSIC_PLAYER_CONFIG_DIR/crash.log"; exit 1; fi
+
   package:
     name: Package (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -148,6 +164,13 @@ jobs:
           $run = Start-Process $exe -ArgumentList '--self-test' -Wait -PassThru -NoNewWindow -RedirectStandardOutput selftest.txt
           Get-Content selftest.txt
           if ($run.ExitCode) { throw "self-test of the installed app failed ($($run.ExitCode))" }
+          # Start the installed app for real (window, first frame, quit), as a user would.
+          $env:ORCHARD_MUSIC_PLAYER_EXIT_AFTER_START = '1'
+          $env:ORCHARD_MUSIC_PLAYER_CONFIG_DIR = "$env:RUNNER_TEMP\omp-installed"
+          $run = Start-Process $exe -Wait -PassThru
+          $env:ORCHARD_MUSIC_PLAYER_EXIT_AFTER_START = $null
+          if (Test-Path "$env:RUNNER_TEMP\omp-installed\crash.log") { Get-Content "$env:RUNNER_TEMP\omp-installed\crash.log"; throw "the installed app crashed at start" }
+          if ($run.ExitCode) { throw "the installed app exited with $($run.ExitCode) at start" }
           Start-Process "$app\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
           # The uninstaller continues from a copy of itself in TEMP: wait for it to finish.
           foreach ($i in 1..30) { if (-not (Test-Path $app)) { break }; Start-Sleep 1 }
