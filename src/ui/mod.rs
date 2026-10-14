@@ -15,16 +15,16 @@ use crate::theme::mix;
 use widgets::{BoxFrame, DrawCtx, Scrollbar, contains, draw_key_bar, fill, inset, put, width};
 
 pub const FKEYS: &[(&str, &str)] = &[
-    ("1", "Help"),
-    ("2", "Open"),
-    ("3", "Visualizer"),
-    ("4", "Save"),
-    ("5", "Load"),
-    ("6", "Shuffle"),
-    ("7", "Repeat"),
-    ("8", "Remove"),
-    ("9", "Settings"),
-    ("10", "Quit"),
+    ("F1", "Help"),
+    ("F2", "Open"),
+    ("F3", "Visualizer"),
+    ("F4", "Save"),
+    ("F5", "Load"),
+    ("F6", "Shuffle"),
+    ("F7", "Repeat"),
+    ("F8", "Remove"),
+    ("F9", "Settings"),
+    ("F10", "Quit"),
 ];
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

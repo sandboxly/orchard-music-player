@@ -11,7 +11,7 @@ const PLAYING: usize = 0;
 const CURSOR: usize = 2;
 /// Spectrum bar heights in eighths of the two bar rows.
 const BARS: [u8; 11] = [14, 16, 12, 15, 10, 11, 8, 9, 6, 4, 3];
-const KEYS: [(&str, &str); 3] = [("1", "Help"), ("2", "Open"), ("9", "Settings")];
+const KEYS: [(&str, &str); 2] = [("F1", "Help"), ("F9", "Settings")];
 
 /// The narrowest it is drawn.
 pub const MIN_WIDTH: u16 = 22;
@@ -77,10 +77,10 @@ pub fn draw(f: &mut Frame, r: CellRect, ctx: &DrawCtx) {
     fill(f, bar, c.footer_bg);
     let mut x = bar.col + 1;
     for (key, label) in KEYS {
-        if x + width(key) + width(label) > right(bar) {
+        if x + width(key) + 1 + width(label) > right(bar) {
             break;
         }
-        x = put(f, x, bar.row, key, Style::new(c.footer_key, c.footer_bg).with(Flags::BOLD), width(key));
+        x = put(f, x, bar.row, key, Style::new(c.footer_key, c.footer_bg).with(Flags::BOLD), width(key)) + 1;
         x = put(f, x, bar.row, label, Style::new(c.footer_fg, c.footer_bg), width(label)) + 2;
     }
 }
@@ -100,6 +100,6 @@ mod tests {
         assert!(f.row_text(1).contains("Teardrop") && f.row_text(1).contains("2:07"));
         assert!(f.row_text(8).contains("3. Kerala"));
         assert_eq!(f.cell(8, 8).unwrap().bg, theme.colors.cursor_bg, "Kerala has the cursor");
-        assert!(f.row_text(HEIGHT - 1).starts_with(" 1Help  2Open  9Settings"));
+        assert!(f.row_text(HEIGHT - 1).starts_with(" F1 Help  F9 Settings"));
     }
 }

@@ -233,7 +233,8 @@ impl Scrollbar {
     }
 }
 
-/// The F-key bar: "1Help 2Open …", keys bold in the key color. Items that
+/// The F-key bar: "F1 Help  F2 Open …" (like Orchard Commander's), keys bold
+/// in the key color. Items that
 /// don't fit wrap to the next row of `area`. Returns each item's cells and
 /// its key number, for clicks.
 pub fn key_bar_items(area: CellRect, keys: &[(&str, &str)]) -> Vec<(CellRect, usize)> {
@@ -241,7 +242,7 @@ pub fn key_bar_items(area: CellRect, keys: &[(&str, &str)]) -> Vec<(CellRect, us
     let (left, right) = (area.col + 1, area.col + area.cols);
     let (mut x, mut row) = (left, area.row);
     for (i, (key, label)) in keys.iter().enumerate() {
-        let w = (width(key) + width(label)).min(right.saturating_sub(left));
+        let w = (width(key) + 1 + width(label)).min(right.saturating_sub(left));
         if x + w > right && x > left {
             x = left;
             row += 1;
@@ -266,7 +267,7 @@ pub fn draw_key_bar(f: &mut Frame, row: CellRect, keys: &[(&str, &str)], ctx: &D
     fill(f, row, c.footer_bg);
     for (r, i) in key_bar_items(row, keys) {
         let (key, label) = keys[i];
-        let x = put(f, r.col, r.row, key, Style::new(c.footer_key, c.footer_bg).with(Flags::BOLD), r.cols);
+        let x = put(f, r.col, r.row, key, Style::new(c.footer_key, c.footer_bg).with(Flags::BOLD), r.cols) + 1;
         let room = r.cols.saturating_sub(x - r.col);
         put(f, x, r.row, &elide_right(label, room as usize), Style::new(c.footer_fg, c.footer_bg), room);
     }
@@ -377,11 +378,11 @@ mod tests {
 
     #[test]
     fn key_bar_wraps() {
-        let keys = [("1", "Help"), ("2", "Open"), ("10", "Quit")];
-        // " 1Help  2Open  10Quit" needs 21 columns.
-        assert_eq!(key_bar_rows(21, &keys), 1);
-        assert_eq!(key_bar_rows(14, &keys), 2);
-        let items = key_bar_items(CellRect::new(0, 5, 14, 2), &keys);
+        let keys = [("F1", "Help"), ("F2", "Open"), ("F10", "Quit")];
+        // " F1 Help  F2 Open  F10 Quit" needs 27 columns.
+        assert_eq!(key_bar_rows(27, &keys), 1);
+        assert_eq!(key_bar_rows(26, &keys), 2);
+        let items = key_bar_items(CellRect::new(0, 5, 18, 2), &keys);
         let rows: Vec<u16> = items.iter().map(|(r, _)| r.row).collect();
         assert_eq!(rows, [5, 5, 6]);
         assert_eq!(items[2].0.col, 1);
