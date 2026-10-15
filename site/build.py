@@ -1,5 +1,6 @@
 """Build the website into _site/: a copy of site/ with the album art credits
-from site/credits.json filled into the page.
+from site/credits.json filled into the page. The page's @VERSION@ ("1.1.1") and
+@MINOR_VERSION@ ("1.1") come from the version in Cargo.toml.
 
     python3 site/build.py    then serve _site/ (python3 -m http.server -d _site)
 """
@@ -10,12 +11,23 @@ import html
 import json
 import shutil
 import sys
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
 OUT = ROOT / "_site"
 MARK = "<!-- credits -->"
+
+
+def version() -> str:
+    with open(ROOT / "Cargo.toml", "rb") as f:
+        return tomllib.load(f)["package"]["version"]
+
+
+def fill_version(text: str) -> str:
+    full = version()
+    return text.replace("@VERSION@", full).replace("@MINOR_VERSION@", ".".join(full.split(".")[:2]))
 
 
 def link(text: str, url: str) -> str:
@@ -56,7 +68,8 @@ def build() -> None:
     shutil.rmtree(OUT, ignore_errors=True)
     shutil.copytree(SITE, OUT, ignore=shutil.ignore_patterns("build.py", "credits.json", "__pycache__", ".DS_Store"))
     index = OUT / "index.html"
-    index.write_text(index.read_text(encoding="utf-8").replace(MARK, credits_html()), encoding="utf-8")
+    text = fill_version(index.read_text(encoding="utf-8"))
+    index.write_text(text.replace(MARK, credits_html()), encoding="utf-8")
     print(f"Built {OUT.relative_to(ROOT)}")
 
 
