@@ -4,14 +4,15 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+use orchard_grid::CellRect;
 use orchard_kit::input::{Key, KeyEvent, MouseEvent, MouseKind, Named};
+use orchard_kit::picker::{Location, Options, Outcome, Picker};
 use orchard_kit::tasks::{Tasks, Waker};
 use orchard_kit::widgets::TextField;
 use orchard_theme::Theme;
 use orchard_theme::schemes::{self, ColorScheme};
 
 use crate::audio::{Notice, Player, State, TrackInfo};
-use crate::browser::{self, Browser};
 use crate::meta::{self, Details, GainMode, ReplayGain, Tags};
 use crate::playlist::{self, Playlist, Repeat};
 use crate::settings::{self, Settings};
@@ -67,8 +68,34 @@ pub struct ThemePicker {
     pub original: String,
 }
 
+/// What the file picker is open for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pick {
+    /// Add music (files, folders, playlists' contents) to the playlist.
+    Music,
+    /// Replace the playlist with an M3U file.
+    Playlist,
+}
+
+impl Pick {
+    /// The shared picker, set up for this.
+    fn options(self, start: PathBuf) -> Options {
+        match self {
+            Pick::Music => Options::files(start)
+                .multi()
+                .mark_folders()
+                .add_folder()
+                .filter(|p| meta::is_audio(p) || meta::is_playlist(p))
+                .title("Add music")
+                .accept("Add to playlist"),
+            Pick::Playlist => Options::files(start).filter(meta::is_playlist).title("Load playlist").accept("Load playlist"),
+        }
+    }
+}
+
 pub enum Modal {
-    Browser(Browser),
+    /// The shared file picker (places, bookmarks, the folder's listing).
+    Picker(Box<Picker>, Pick),
     Prompt(Prompt),
     Themes(ThemePicker),
     Settings(Box<ui::settings::SettingsDialog>),
@@ -315,6 +342,9 @@ impl App {
             done(self);
             changed = true;
         }
+        if let Some(Modal::Picker(p, _)) = &mut self.modal {
+            changed |= p.poll();
+        }
         for n in self.player.take_notices() {
             changed = true;
             match n {
@@ -461,7 +491,7 @@ impl App {
             return;
         }
         self.tasks.spawn(
-            move || browser::expand(&paths),
+            move || playlist::expand(&paths),
             move |app, entries| {
                 if entries.is_empty() {
                     app.toast("No audio files found in what you added", true);
@@ -607,7 +637,7 @@ impl App {
                 let i = self.playlist.cursor.min(self.playlist.len() - 1);
                 self.play_index(i);
             }
-            _ => self.open_browser(browser::Mode::Add),
+            _ => self.open_picker(Pick::Music),
         }
     }
 
@@ -845,32 +875,51 @@ impl App {
             .unwrap_or_else(|| PathBuf::from("/"))
     }
 
-    pub fn open_browser(&mut self, mode: browser::Mode) {
-        let dir = self.start_dir();
-        self.modal = Some(Modal::Browser(Browser::new(mode, dir.clone())));
-        self.list_dir(dir);
+    /// The file picker, in the folder used last; its listing, places and
+    /// bookmarks arrive through `process`.
+    pub fn open_picker(&mut self, pick: Pick) {
+        let picker = Picker::new(pick.options(self.start_dir()), self.tasks.waker());
+        self.modal = Some(Modal::Picker(Box::new(picker), pick));
     }
 
-    fn list_dir(&mut self, dir: PathBuf) {
-        let Some(Modal::Browser(b)) = &mut self.modal else { return };
-        b.going_to(dir.clone());
-        let mode = b.mode;
-        self.tasks.spawn(
-            {
-                let dir = dir.clone();
-                move || browser::list(&dir, mode)
-            },
-            move |app, result| {
-                if let Some(Modal::Browser(b)) = &mut app.modal
-                    && b.dir == dir {
-                        b.listed(result);
-                        let h = ui::dialog_list_height(app);
-                        if let Some(Modal::Browser(b)) = &mut app.modal {
-                            b.scroll_into_view(h);
-                        }
-                    }
-            },
-        );
+    /// The whole window: the picker centers itself in it.
+    pub fn screen(&self) -> CellRect {
+        CellRect::new(0, 0, self.cols, self.rows)
+    }
+
+    /// Act on what the picker handed back; `None` closes it.
+    fn picked(&mut self, picker: Box<Picker>, pick: Pick, out: Outcome) -> Option<Modal> {
+        let shown = match picker.location() {
+            Location::Dir(d) => Some(d.clone()),
+            Location::Drives => None,
+        };
+        match out {
+            Outcome::Keep => Some(Modal::Picker(picker, pick)),
+            Outcome::Cancel | Outcome::Folder(_) => None,
+            Outcome::Files(paths) if pick == Pick::Playlist => {
+                if let Some(path) = paths.into_iter().next() {
+                    self.load_playlist(path);
+                }
+                None
+            }
+            Outcome::Files(paths) => {
+                self.add_picked(shown, paths);
+                None
+            }
+            Outcome::AddFolder(dir) => {
+                self.add_picked(shown, vec![dir]);
+                None
+            }
+        }
+    }
+
+    /// Add what was picked (folders recursively); playback starts if stopped.
+    fn add_picked(&mut self, shown: Option<PathBuf>, paths: Vec<PathBuf>) {
+        if shown.is_some() {
+            self.settings.last_dir = shown;
+        }
+        let play = self.player.state() == State::Stopped;
+        self.add_paths(paths, play);
     }
 
     pub fn open_save_prompt(&mut self) {
@@ -933,9 +982,9 @@ impl App {
         if m.primary() {
             match &ev.key {
                 Key::Char('f') => self.start_filter(),
-                Key::Char('o') => self.open_browser(browser::Mode::Add),
+                Key::Char('o') => self.open_picker(Pick::Music),
                 Key::Char('s') => self.open_save_prompt(),
-                Key::Char('l') => self.open_browser(browser::Mode::LoadPlaylist),
+                Key::Char('l') => self.open_picker(Pick::Playlist),
                 Key::Char('q') => self.quit = true,
                 Key::Char(',') => self.open_settings(),
                 Key::Char('=' | '+') => self.zoom(1),
@@ -968,7 +1017,7 @@ impl App {
             Key::Named(Named::Escape) if self.filter.is_some() => self.clear_filter(),
             Key::Named(Named::Delete) if m.shift => self.clear_playlist(),
             Key::Named(Named::Delete | Named::Backspace) => self.remove_selected(),
-            Key::Named(Named::Insert) => self.open_browser(browser::Mode::Add),
+            Key::Named(Named::Insert) => self.open_picker(Pick::Music),
             _ => match ev.typed() {
                 Some(" ") => self.play_pause(),
                 Some("z" | "Z") => self.previous(),
@@ -1028,10 +1077,10 @@ impl App {
     pub fn fkey(&mut self, n: u8) {
         match n {
             1 => self.modal = Some(Modal::Help),
-            2 => self.open_browser(browser::Mode::Add),
+            2 => self.open_picker(Pick::Music),
             3 => self.cycle_vis(),
             4 => self.open_save_prompt(),
-            5 => self.open_browser(browser::Mode::LoadPlaylist),
+            5 => self.open_picker(Pick::Playlist),
             6 => self.toggle_shuffle(),
             7 => self.cycle_repeat(),
             8 => self.remove_selected(),
@@ -1106,89 +1155,11 @@ impl App {
                 }
                 (!close).then_some(Modal::Themes(t))
             }
-            Modal::Browser(mut b) => {
-                let page = list_h.max(2) as isize - 1;
-                let action = match &ev.key {
-                    Key::Named(Named::Escape | Named::F(10)) => browser::Action::Close,
-                    Key::Named(Named::Up) => {
-                        b.move_cursor(-1);
-                        browser::Action::None
-                    }
-                    Key::Named(Named::Down) => {
-                        b.move_cursor(1);
-                        browser::Action::None
-                    }
-                    Key::Named(Named::PageUp) => {
-                        b.move_cursor(-page);
-                        browser::Action::None
-                    }
-                    Key::Named(Named::PageDown) => {
-                        b.move_cursor(page);
-                        browser::Action::None
-                    }
-                    Key::Named(Named::Home) => {
-                        b.move_cursor(isize::MIN / 2);
-                        browser::Action::None
-                    }
-                    Key::Named(Named::End) => {
-                        b.move_cursor(isize::MAX / 2);
-                        browser::Action::None
-                    }
-                    Key::Named(Named::Enter) if ev.mods.shift => b.add_folder(),
-                    Key::Named(Named::Enter) => b.activate(),
-                    Key::Named(Named::Right) => match b.item(b.cursor) {
-                        Some(i) if i.is_dir => browser::Action::Open(i.path.clone()),
-                        _ => browser::Action::None,
-                    },
-                    Key::Named(Named::Backspace | Named::Left) => browser::parent(&b.dir).map_or(browser::Action::None, browser::Action::Open),
-                    Key::Named(Named::Insert) => {
-                        b.toggle_mark();
-                        browser::Action::None
-                    }
-                    Key::Named(Named::F(3)) => b.add_folder(),
-                    _ => match ev.typed() {
-                        Some(" ") => {
-                            b.toggle_mark();
-                            browser::Action::None
-                        }
-                        Some("*") => {
-                            b.mark_all();
-                            browser::Action::None
-                        }
-                        Some("~") => dirs::home_dir().map_or(browser::Action::None, browser::Action::Open),
-                        Some(t) => {
-                            b.search(t, Instant::now());
-                            browser::Action::None
-                        }
-                        None => browser::Action::None,
-                    },
-                };
-                b.scroll_into_view(list_h);
-                self.browser_action(b, action)
+            Modal::Picker(mut p, pick) => {
+                let out = p.key(ev, self.screen());
+                self.picked(p, pick, out)
             }
         };
-    }
-
-    fn browser_action(&mut self, b: Browser, action: browser::Action) -> Option<Modal> {
-        match action {
-            browser::Action::None => Some(Modal::Browser(b)),
-            browser::Action::Close => None,
-            browser::Action::Open(dir) => {
-                self.modal = Some(Modal::Browser(b));
-                self.list_dir(dir);
-                self.modal.take()
-            }
-            browser::Action::Add(paths) => {
-                self.settings.last_dir = Some(b.dir.clone());
-                let play = self.player.state() == State::Stopped;
-                self.add_paths(paths, play);
-                None
-            }
-            browser::Action::Load(path) => {
-                self.load_playlist(path);
-                None
-            }
-        }
     }
 
     fn confirm_prompt(&mut self, p: &Prompt) {
@@ -1289,24 +1260,14 @@ impl App {
             }
             return;
         }
+        if let Some(Modal::Picker(mut p, pick)) = self.modal.take() {
+            let out = p.mouse(ev, self.screen());
+            self.modal = self.picked(p, pick, out);
+            return;
+        }
         let Some(list) = ui::dialog_list_rect(self) else { return };
         let hit = orchard_kit::widgets::contains(list, ev.col, ev.row);
         match (&mut self.modal, ev.kind) {
-            (Some(Modal::Browser(b)), MouseKind::Down) if hit => {
-                let row = b.top + (ev.row - list.row) as usize;
-                if row < b.rows() {
-                    b.cursor = row;
-                    if ev.double {
-                        let action = b.activate();
-                        let Some(Modal::Browser(b)) = self.modal.take() else { return };
-                        self.modal = self.browser_action(b, action);
-                    }
-                }
-            }
-            (Some(Modal::Browser(b)), MouseKind::Scroll(dy)) => {
-                let max = b.rows().saturating_sub(list.rows as usize);
-                b.top = (b.top as f32 - dy * 3.0).round().clamp(0.0, max as f32) as usize;
-            }
             (Some(Modal::Themes(t)), MouseKind::Down) if hit => {
                 let row = t.top + (ev.row - list.row) as usize;
                 if row < t.schemes.len() {
@@ -1406,6 +1367,109 @@ mod tests {
         assert_eq!(app.playlist.len(), 2);
         assert_eq!(app.filter.as_ref().unwrap().matches, [1]);
         assert_eq!(app.playlist.cursor, 1);
+    }
+
+    /// An app whose wake-ups arrive on the returned channel, sized like a window.
+    fn woken_app() -> (App, std::sync::mpsc::Receiver<()>) {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut app = App::new(
+            std::sync::Arc::new(move || {
+                let _ = tx.send(());
+            }),
+            false,
+            false,
+        );
+        app.resized(112, 38, (8.0, 16.0));
+        (app, rx)
+    }
+
+    /// Run background results until `done` holds (5 s at most).
+    fn settle(app: &mut App, woken: &std::sync::mpsc::Receiver<()>, done: impl Fn(&App) -> bool) {
+        let until = Instant::now() + Duration::from_secs(5);
+        while !done(app) && Instant::now() < until {
+            let _ = woken.recv_timeout(until.saturating_duration_since(Instant::now()));
+            app.process();
+        }
+        assert!(done(app), "timed out");
+    }
+
+    /// The picker for `pick` in `dir`, without places and bookmarks (so
+    /// nothing reads the real config), listed.
+    fn open_in(app: &mut App, woken: &std::sync::mpsc::Receiver<()>, pick: Pick, dir: &Path) {
+        let opts = pick.options(dir.to_path_buf()).bookmarks(None).no_places();
+        app.modal = Some(Modal::Picker(Box::new(Picker::new(opts, app.tasks.waker())), pick));
+        settle(app, woken, |a| matches!(&a.modal, Some(Modal::Picker(p, _)) if !p.loading()));
+    }
+
+    fn music_folder() -> tempfile::TempDir {
+        let d = tempfile::tempdir().unwrap();
+        std::fs::create_dir(d.path().join("CD2")).unwrap();
+        for f in ["CD2/01.flac", "a.mp3", "b.mp3", "notes.txt"] {
+            std::fs::write(d.path().join(f), b"").unwrap();
+        }
+        std::fs::write(d.path().join("list.m3u"), "b.mp3\na.mp3\n").unwrap();
+        d
+    }
+
+    fn playlist_paths(app: &App) -> Vec<PathBuf> {
+        app.playlist.entries.iter().map(|e| e.path.clone()).collect()
+    }
+
+    #[test]
+    fn the_picker_adds_marked_files_and_remembers_the_folder() {
+        let d = music_folder();
+        let (mut app, woken) = woken_app();
+        open_in(&mut app, &woken, Pick::Music, d.path());
+        let Some(Modal::Picker(p, _)) = &app.modal else { panic!() };
+        let names: Vec<_> = p.entries().unwrap().iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, ["CD2", "a.mp3", "b.mp3", "list.m3u"], "audio files and playlists only");
+        app.handle_key(&KeyEvent::char('*'));
+        app.handle_key(&KeyEvent::named(Named::Down)); // Enter on ".." would go up
+        app.handle_key(&KeyEvent::named(Named::Enter));
+        assert!(app.modal.is_none());
+        assert_eq!(app.settings.last_dir.as_deref(), Some(d.path()));
+        // `*` marks the playlist too: its tracks follow.
+        settle(&mut app, &woken, |a| a.playlist.len() == 4);
+        let [a, b] = ["a.mp3", "b.mp3"].map(|f| d.path().join(f));
+        assert_eq!(playlist_paths(&app), [a.clone(), b.clone(), b, a]);
+    }
+
+    #[test]
+    fn f3_adds_the_folder_under_the_cursor() {
+        let d = music_folder();
+        let (mut app, woken) = woken_app();
+        open_in(&mut app, &woken, Pick::Music, d.path());
+        app.handle_key(&KeyEvent::named(Named::Down)); // past ".."
+        app.handle_key(&KeyEvent::named(Named::F(3)));
+        assert!(app.modal.is_none(), "adding a folder closes the picker");
+        settle(&mut app, &woken, |a| !a.playlist.is_empty());
+        assert_eq!(playlist_paths(&app), [d.path().join("CD2/01.flac")]);
+    }
+
+    #[test]
+    fn the_playlist_picker_loads_one() {
+        let d = music_folder();
+        let (mut app, woken) = woken_app();
+        open_in(&mut app, &woken, Pick::Playlist, d.path());
+        let Some(Modal::Picker(p, _)) = &app.modal else { panic!() };
+        let names: Vec<_> = p.entries().unwrap().iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, ["CD2", "list.m3u"]);
+        app.handle_key(&KeyEvent::named(Named::End));
+        app.handle_key(&KeyEvent::named(Named::Enter));
+        assert!(app.modal.is_none());
+        settle(&mut app, &woken, |a| a.playlist.len() == 2);
+        assert_eq!(playlist_paths(&app), [d.path().join("b.mp3"), d.path().join("a.mp3")]);
+        assert_eq!(app.playlist.file.as_deref(), Some(d.path().join("list.m3u").as_path()));
+    }
+
+    #[test]
+    fn esc_closes_the_picker() {
+        let d = music_folder();
+        let (mut app, woken) = woken_app();
+        open_in(&mut app, &woken, Pick::Music, d.path());
+        app.handle_key(&KeyEvent::named(Named::Escape));
+        assert!(app.modal.is_none());
+        assert!(app.playlist.is_empty());
     }
 
     #[test]

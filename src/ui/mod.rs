@@ -9,7 +9,6 @@ use orchard_theme::mix;
 
 use crate::app::{App, Modal, format_time};
 use crate::audio::State;
-use crate::browser::Mode as BrowseMode;
 use crate::playlist::Repeat;
 use crate::spectrum;
 
@@ -526,11 +525,10 @@ fn centered(app: &App, w: u16, h: u16) -> CellRect {
 
 fn modal_rect(app: &App, m: &Modal) -> CellRect {
     match m {
-        Modal::Browser(_) => centered(app, 96, app.rows.saturating_sub(4)),
         Modal::Prompt(_) => centered(app, 84, 7),
         Modal::Themes(t) => centered(app, 50, t.schemes.len() as u16 + 4),
         Modal::Help => centered(app, 76, HELP.len() as u16 + 4),
-        Modal::Settings(_) => CellRect::new(0, 0, 0, 0),
+        Modal::Settings(_) | Modal::Picker(..) => CellRect::new(0, 0, 0, 0),
     }
 }
 
@@ -539,7 +537,6 @@ pub fn dialog_list_rect(app: &App) -> Option<CellRect> {
     let m = app.modal.as_ref()?;
     let inner = inset(modal_rect(app, m), 1, 1);
     match m {
-        Modal::Browser(_) => Some(CellRect::new(inner.col + 1, inner.row, inner.cols.saturating_sub(2), inner.rows.saturating_sub(2))),
         Modal::Themes(_) => Some(CellRect::new(inner.col + 1, inner.row + 1, inner.cols.saturating_sub(2), inner.rows.saturating_sub(2))),
         _ => None,
     }
@@ -551,65 +548,16 @@ pub fn dialog_list_height(app: &App) -> usize {
 
 fn draw_modal(app: &App, m: &Modal, f: &mut Frame, ctx: &DrawCtx) {
     let c = &app.theme.colors;
-    if let Modal::Settings(d) = m {
-        d.draw(app, f, ctx);
-        return;
+    match m {
+        Modal::Settings(d) => return d.draw(app, f, ctx),
+        // The shared picker draws its own frame, cover and shadow.
+        Modal::Picker(p, _) => return p.draw(f, app.screen(), ctx),
+        _ => {}
     }
     let r = modal_rect(app, m);
     // Over what is under it, with a soft shadow along the right and bottom edges.
     settings::form::cover(f, r, ctx);
     match m {
-        Modal::Browser(b) => {
-            let title = format!("{} · {}", b.title(), b.place());
-            let marked = if b.marked.is_empty() { String::new() } else { format!("{} marked", b.marked.len()) };
-            let inner = BoxFrame { title: &title, subtitle: &marked, active: true }.draw(f, r, ctx);
-            let list = dialog_list_rect(app).unwrap_or(inner);
-            match &b.items {
-                None => {
-                    put(f, list.col, list.row, "Listing…", Style::new(c.muted, c.surface), list.cols);
-                }
-                Some(_) => {
-                    for i in 0..list.rows as usize {
-                        let idx = b.top + i;
-                        if idx >= b.rows() {
-                            break;
-                        }
-                        let row = list.row + i as u16;
-                        let is_cursor = idx == b.cursor;
-                        let marked = b.marked.contains(&idx);
-                        let bg = if is_cursor { c.cursor_bg } else { c.surface };
-                        let (name, fg) = match b.item(idx) {
-                            None => ("..".to_string(), c.dir),
-                            Some(it) if it.is_dir => (format!("{}/", it.name), c.dir),
-                            Some(it) if crate::meta::is_playlist(&it.path) => (it.name.clone(), c.link),
-                            Some(it) => (it.name.clone(), c.foreground),
-                        };
-                        let fg = if is_cursor {
-                            c.cursor_fg
-                        } else if marked {
-                            c.marked
-                        } else {
-                            fg
-                        };
-                        f.fill(CellRect::new(list.col, row, list.cols, 1), ' ', Style::new(fg, bg));
-                        let mark = if marked { "✓" } else { " " };
-                        let x = put(f, list.col, row, mark, Style::new(if is_cursor { c.cursor_fg } else { c.marked }, bg), 1) + 1;
-                        let room = list.cols.saturating_sub(x - list.col + 1);
-                        put(f, x, row, &elide_right(&name, room as usize), Style::new(fg, bg), room);
-                    }
-                    if let Some(e) = &b.error {
-                        put(f, list.col, list.row + 1, &format!("Can't open this folder: {e}"), Style::new(c.error, c.surface), list.cols);
-                    }
-                    Scrollbar { total: b.rows(), visible: list.rows as usize, top: b.top }.draw(f, list, ctx);
-                }
-            }
-            let hint = match b.mode {
-                BrowseMode::Add => "Enter add/open · Space mark · * all · F3 add folder · ⌫ up · ~ home · Esc close",
-                BrowseMode::LoadPlaylist => "Enter load/open · ⌫ up · ~ home · Esc close",
-            };
-            let hr = inner.row + inner.rows - 1;
-            put(f, inner.col + 1, hr, &elide_right(hint, inner.cols.saturating_sub(2) as usize), Style::new(c.muted, c.surface), inner.cols.saturating_sub(2));
-        }
         Modal::Prompt(p) => {
             let inner = BoxFrame { title: &p.title, subtitle: "", active: true }.draw(f, r, ctx);
             put(f, inner.col + 1, inner.row + 1, &p.label, Style::new(c.foreground, c.surface), inner.cols.saturating_sub(2));
@@ -642,7 +590,7 @@ fn draw_modal(app: &App, m: &Modal, f: &mut Frame, ctx: &DrawCtx) {
             }
             put(f, inner.col + 1, inner.row + inner.rows - 1, "↑↓ preview · Enter keep · Esc revert", Style::new(c.muted, c.surface), inner.cols.saturating_sub(2));
         }
-        Modal::Settings(_) => {}
+        Modal::Settings(_) | Modal::Picker(..) => {}
         Modal::Help => {
             let inner = BoxFrame { title: "Keys", subtitle: "", active: true }.draw(f, r, ctx);
             for (i, (k, d)) in HELP.iter().enumerate() {

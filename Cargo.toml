@@ -39,10 +39,6 @@ serde = { version = "1.0", features = ["derive"] }
 dirs = "6.0"
 log = "0.4"
 
-[target.'cfg(windows)'.dependencies]
-# The drive list in the file browser (src/browser.rs).
-windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
-
 [build-dependencies]
 # The Windows icon and version resource (build.rs).
 embed-resource = "3"

@@ -6,15 +6,16 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
+use std::sync::mpsc::{self, Receiver};
 use std::time::{Duration, Instant};
 
 use orchard_grid::Frame;
+use orchard_kit::input::{KeyEvent, Mods, Named};
 use orchard_music_player::App;
-use orchard_music_player::app::{Modal, NowPlaying};
+use orchard_music_player::app::{Modal, NowPlaying, Pick};
 use orchard_music_player::audio::{self, State};
-use orchard_music_player::browser::{self, Browser};
 use orchard_music_player::meta::{self, Details, Tags};
-use orchard_music_player::playlist::Entry;
+use orchard_music_player::playlist::{self, Entry};
 use orchard_music_player::spectrum;
 use orchard_music_player::ui;
 use orchard_music_player::ui::settings;
@@ -56,8 +57,8 @@ struct Options {
     filter: Option<String>,
     /// 1-based playlist position of the selection.
     cursor: Option<usize>,
-    /// The folder the file browser shows in its title (it lists `music`).
-    browse_as: Option<PathBuf>,
+    /// Where the file picker opens (else the `--music` folder, else the system's).
+    browse: Option<PathBuf>,
     shuffle: bool,
     volume: f32,
 }
@@ -72,7 +73,7 @@ impl Options {
             "--vis" => self.vis = it.next().map(|s| spectrum::Mode::from_label(s)),
             "--filter" => self.filter = it.next().cloned(),
             "--cursor" => self.cursor = it.next().and_then(|s| s.parse().ok()),
-            "--browse-as" => self.browse_as = it.next().map(PathBuf::from),
+            "--browse" => self.browse = it.next().map(PathBuf::from),
             "--shuffle" => self.shuffle = true,
             "--volume" => self.volume = it.next().and_then(|s| s.parse().ok()).unwrap_or(0.72),
             _ => {}
@@ -86,7 +87,15 @@ pub fn run(args: &[String]) -> ExitCode {
         Ok(s) => s,
         Err(code) => return code,
     };
-    let mut app = App::new(Arc::new(|| {}), false, false);
+    // Wake-ups from background work (the picker's listing, places and bookmarks).
+    let (tx, woken) = mpsc::channel();
+    let mut app = App::new(
+        Arc::new(move || {
+            let _ = tx.send(());
+        }),
+        false,
+        false,
+    );
     if let Some(t) = &shot.theme {
         let s = orchard_theme::schemes::get_scheme(&orchard_theme::dirs::schemes_dir(), t);
         app.apply_scheme(s);
@@ -123,6 +132,9 @@ pub fn run(args: &[String]) -> ExitCode {
     {
         eprintln!("cover: {e}");
     }
+    if let Some(dir) = &o.browse {
+        app.settings.last_dir = Some(dir.canonicalize().unwrap_or_else(|_| dir.clone()));
+    }
     match shot.dialog.as_deref() {
         Some("help") => app.modal = Some(Modal::Help),
         Some("themes") => app.open_theme_picker(),
@@ -134,7 +146,13 @@ pub fn run(args: &[String]) -> ExitCode {
             }
             app.refilter();
         }
-        Some("browser") => open_browser(&mut app, o.music.clone(), o.browse_as.clone()),
+        Some("browser") => open_picker(&mut app, Pick::Music, &woken),
+        Some("load") => open_picker(&mut app, Pick::Playlist, &woken),
+        Some("bookmarks") => {
+            open_picker(&mut app, Pick::Music, &woken);
+            let mods = Mods { ctrl: true, logo: true, ..Mods::default() };
+            app.handle_key(&KeyEvent::char('d').with(mods));
+        }
         Some(d @ ("settings" | "settings-playback" | "scheme-editor" | "color-picker")) => open_settings(&mut app, d),
         Some(other) => {
             eprintln!("screenshot: no dialog '{other}'");
@@ -147,23 +165,18 @@ pub fn run(args: &[String]) -> ExitCode {
     shot::finish(&mut r, &frame, &shot.out)
 }
 
-/// The file browser on `dir` (the music folder), listed right away; its
-/// title says `shown` if given (a tidy path for docs).
-fn open_browser(app: &mut App, dir: Option<PathBuf>, shown: Option<PathBuf>) {
-    let dir = dir.or_else(dirs::audio_dir).or_else(dirs::home_dir).unwrap_or_else(|| PathBuf::from("/"));
-    let dir = dir.canonicalize().unwrap_or(dir);
-    let mode = browser::Mode::Add;
-    let mut b = Browser::new(mode, dir.clone());
-    b.going_to(dir.clone());
-    b.listed(browser::list(&dir, mode));
-    b.move_cursor(2);
-    if let Some(shown) = shown {
-        b.dir = shown;
+/// The file picker in the folder used last (`--browse`, `--music`), once
+/// its listing, places and bookmarks are in (a few seconds at most), with
+/// the cursor a few rows down.
+fn open_picker(app: &mut App, pick: Pick, woken: &Receiver<()>) {
+    app.open_picker(pick);
+    let until = Instant::now() + Duration::from_secs(5);
+    while matches!(&app.modal, Some(Modal::Picker(p, _)) if p.loading()) && Instant::now() < until {
+        let _ = woken.recv_timeout(until.saturating_duration_since(Instant::now()));
+        app.process();
     }
-    app.modal = Some(Modal::Browser(b));
-    let h = ui::dialog_list_height(app);
-    if let Some(Modal::Browser(b)) = &mut app.modal {
-        b.scroll_into_view(h);
+    for _ in 0..2 {
+        app.handle_key(&KeyEvent::named(Named::Down));
     }
 }
 
@@ -203,7 +216,7 @@ struct Audio {
 /// `o.play`th plays at `o.at` seconds.
 fn real(app: &mut App, dir: &Path, o: &Options) -> Result<Audio, String> {
     let dir = dir.canonicalize().map_err(|e| format!("{}: {}", dir.display(), meta::io_reason(&e)))?;
-    let mut entries = browser::expand(std::slice::from_ref(&dir));
+    let mut entries = playlist::expand(std::slice::from_ref(&dir));
     if entries.is_empty() {
         return Err(format!("no audio files in {}", dir.display()));
     }

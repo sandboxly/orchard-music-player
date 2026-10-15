@@ -5,7 +5,9 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::meta::Tags;
+use orchard_kit::picker::natural_cmp;
+
+use crate::meta::{Tags, is_audio, is_playlist};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Entry {
@@ -341,6 +343,40 @@ pub fn save_m3u(entries: &[Entry], path: &Path) -> io::Result<()> {
     fs::rename(&tmp, path)
 }
 
+/// Audio files under `paths` (folders recursively, playlists expanded), in
+/// natural order per folder (blocking).
+pub fn expand(paths: &[PathBuf]) -> Vec<Entry> {
+    let mut out = Vec::new();
+    for p in paths {
+        if p.is_dir() {
+            walk(p, &mut out, 0);
+        } else if is_playlist(p) {
+            out.extend(load_m3u(p).unwrap_or_default());
+        } else if is_audio(p) {
+            out.push(Entry::new(p.clone()));
+        }
+    }
+    out
+}
+
+fn walk(dir: &Path, out: &mut Vec<Entry>, depth: usize) {
+    if depth > 32 {
+        return;
+    }
+    let Ok(rd) = fs::read_dir(dir) else { return };
+    let mut entries: Vec<PathBuf> = rd
+        .flatten()
+        .filter(|e| !e.file_name().to_string_lossy().starts_with('.'))
+        .map(|e| e.path())
+        .collect();
+    entries.sort_by(|a, b| natural_cmp(&a.to_string_lossy(), &b.to_string_lossy()));
+    let (dirs, files): (Vec<_>, Vec<_>) = entries.into_iter().partition(|p| p.is_dir());
+    out.extend(files.into_iter().filter(|p| is_audio(p)).map(Entry::new));
+    for d in dirs {
+        walk(&d, out, depth + 1);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -416,5 +452,20 @@ mod tests {
         assert_eq!(p.current, Some(1));
         p.remove(1);
         assert_eq!(p.current, None);
+    }
+
+    #[test]
+    fn expands_folders_and_playlists() {
+        let d = tempfile::tempdir().unwrap();
+        fs::create_dir(d.path().join("CD2")).unwrap();
+        fs::write(d.path().join("CD2/01.flac"), b"").unwrap();
+        fs::write(d.path().join("02.mp3"), b"").unwrap();
+        fs::write(d.path().join("10.mp3"), b"").unwrap();
+        fs::write(d.path().join("notes.txt"), b"").unwrap();
+        fs::write(d.path().join(".hidden.mp3"), b"").unwrap();
+        fs::write(d.path().join("list.m3u"), "10.mp3\n").unwrap();
+        let paths = |p: &[PathBuf]| expand(p).into_iter().map(|e| e.path).collect::<Vec<_>>();
+        assert_eq!(paths(&[d.path().to_path_buf()]), [d.path().join("02.mp3"), d.path().join("10.mp3"), d.path().join("CD2/01.flac")]);
+        assert_eq!(paths(&[d.path().join("list.m3u"), d.path().join("notes.txt")]), [d.path().join("10.mp3")]);
     }
 }

@@ -3,7 +3,6 @@
 
 pub mod app;
 pub mod audio;
-pub mod browser;
 pub mod media;
 pub mod meta;
 pub mod playlist;

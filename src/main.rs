@@ -181,7 +181,7 @@ fn window_handle(window: &Window) -> Option<*mut std::ffi::c_void> {
 }
 
 fn usage() -> &'static str {
-    "usage: orchard-music-player [FILE|FOLDER|PLAYLIST.m3u]...\n       orchard-music-player --version | --self-test\n       orchard-music-player --screenshot OUT.png|OUT.webp [--size COLSxROWS] [--theme NAME] [--dialog help|themes|settings|settings-playback|scheme-editor|color-picker|save|filter|browser] [--music DIR [--play N] [--at SECONDS]] [--vis bars|scope|off]"
+    "usage: orchard-music-player [FILE|FOLDER|PLAYLIST.m3u]...\n       orchard-music-player --version | --self-test\n       orchard-music-player --screenshot OUT.png|OUT.webp [--size COLSxROWS] [--theme NAME] [--dialog help|themes|settings|settings-playback|scheme-editor|color-picker|save|filter|browser|load|bookmarks] [--browse DIR] [--music DIR [--play N] [--at SECONDS]] [--vis bars|scope|off]"
 }
 
 /// `--self-test`: decoding and drawing work in this build (for packaging
