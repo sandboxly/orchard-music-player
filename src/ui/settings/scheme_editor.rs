@@ -34,11 +34,10 @@ const COLUMNS: [&[&str]; 2] = [&["General", "Cursor"], &["Files", "Messages", "K
 pub const SHARED_NOTE: &str = "Shared with Orchard Commander: saved schemes show up there too";
 
 /// The player's name for a color role where it differs from Commander's
-/// (the file browser shows folders, playlists and marked files).
+/// (the file picker shows folders and marked files).
 fn role_label(role: &str, commander: &'static str) -> &'static str {
     match role {
         "dir" => "Folders",
-        "link" => "Links and playlists",
         _ => commander,
     }
 }

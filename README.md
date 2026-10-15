@@ -54,7 +54,7 @@ cargo at a pinned release tag:
 |--------------------|-----------------------------------------------------------|
 | `orchard-grid`     | the wgpu character-grid renderer and winit                |
 | `orchard-theme`    | color schemes, frame styles, the schemes folder           |
-| `orchard-kit`      | background tasks, input events, widgets, forms, clipboard |
+| `orchard-kit`      | tasks, input, widgets, forms, file picker, clipboard      |
 | `orchard-shell`    | the window, event loop, command line, settings files      |
 | `orchard-metadata` | reading audio tags (its `AudioTags` provider)             |
 
@@ -79,9 +79,13 @@ cargo at a pinned release tag:
 | ⌘+ ⌘− ⌘0                  | font size                              |
 | F1–F10                    | as on the key bar                      |
 
-In the file browser: Enter opens a folder or adds a file, Space/Insert
-marks, `*` marks all files, F3 or ⇧Enter adds the whole folder, Backspace
-goes up, `~` goes home, typing jumps to a name.
+Open (F2) and Load (F5) use the file picker the Orchard apps share: your
+places and Orchard Commander's bookmarks on the left, the folder on the
+right. Enter opens a folder or adds a file, Space/Insert marks, `*` marks
+all files, F3 or ⇧Enter adds the whole folder, Backspace goes up, `~` goes
+home, typing jumps to a name, Tab moves between places, list and buttons,
+⌘D opens the bookmark menu (where you can also bookmark the folder shown,
+for Orchard Commander too), Esc or F10 cancels.
 
 ## Files
 
@@ -95,7 +99,7 @@ Settings and the session playlist live in the platform config folder
 ```sh
 cargo test
 OMP_TEST_MUSIC=/path/to/some/music cargo test -- --nocapture   # decode + tag real files
-orchard-music-player --screenshot out.png [--size 110x36] [--theme nord] [--dialog help|themes|save|filter|browser]
+orchard-music-player --screenshot out.png [--size 110x36] [--theme nord] [--dialog help|themes|save|filter|browser|load|bookmarks] [--browse DIR]
 # real files: their tags and cover, the visualizer fed with the decoded audio; .webp saves lossless WebP
 orchard-music-player --screenshot out.webp --music DIR [--play N] [--at SECONDS] [--vis bars|scope] [--cursor N] [--filter TEXT]
 ```

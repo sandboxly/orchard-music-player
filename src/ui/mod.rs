@@ -625,6 +625,7 @@ const HELP: &[(&str, &str)] = &[
     ("T", "Color scheme, quick pick"),
     ("⌘,  /  F9", "Settings: colors, font, playback"),
     ("⌘O / ⌘L / ⌘S", "Open · load playlist · save playlist"),
+    ("⌘D in Open or Load", "Bookmarks, shared with Orchard Commander"),
     ("⌘+ ⌘− ⌘0", "Font size"),
     ("Media keys", "Play/pause · next · previous"),
     ("F1 … F10", "As on the key bar"),
