@@ -15,16 +15,16 @@ path = "src/main.rs"
 # Shared with the other Orchard apps (Orchard Commons), pinned to a release
 # tag (for a local change to them, override with a [patch] section pointing
 # at a checkout). The character-grid renderer (wgpu + winit).
-orchard-grid = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.1.0" }
+orchard-grid = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.2.0" }
 # Color schemes, frame styles and the color-schemes folder shared with
 # Orchard Commander.
-orchard-theme = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.1.0" }
+orchard-theme = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.2.0" }
 # Background tasks, input events, grid widgets, dialog forms and the clipboard.
-orchard-kit = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.1.0" }
+orchard-kit = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.2.0" }
 # The window, event loop, command line and settings files.
-orchard-shell = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.1.0" }
+orchard-shell = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.2.0" }
 # Audio tag reading (the AudioTags provider).
-orchard-metadata = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.1.0" }
+orchard-metadata = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.2.0" }
 symphonia = { version = "0.6", features = ["all"] }
 # Opus (libopus, built from the bundled source).
 symphonia-adapter-libopus = "0.3"

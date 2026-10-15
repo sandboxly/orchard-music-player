@@ -10,7 +10,7 @@ The license of the bundled C library libopus is in libopus.txt in this folder.
 
 Overview
 --------
-MIT License (MIT): 325 crate(s)
+MIT License (MIT): 326 crate(s)
 BSD 3-Clause "New" or "Revised" License (BSD-3-Clause): 20 crate(s)
 Mozilla Public License 2.0 (MPL-2.0): 17 crate(s)
 Apache License 2.0 (Apache-2.0): 12 crate(s)
@@ -5383,10 +5383,11 @@ SOFTWARE.
 MIT License (MIT)
 
 Used by:
-  - orchard-grid 0.1.0 <https://github.com/sandboxly/orchard-commons>
-  - orchard-kit 0.1.0 <https://github.com/sandboxly/orchard-commons>
-  - orchard-metadata 0.1.0 <https://github.com/sandboxly/orchard-commons>
-  - orchard-theme 0.1.0 <https://github.com/sandboxly/orchard-commons>
+  - orchard-grid 0.2.0 <https://github.com/sandboxly/orchard-commons>
+  - orchard-kit 0.2.0 <https://github.com/sandboxly/orchard-commons>
+  - orchard-metadata 0.2.0 <https://github.com/sandboxly/orchard-commons>
+  - orchard-shell 0.2.0 <https://github.com/sandboxly/orchard-commons>
+  - orchard-theme 0.2.0 <https://github.com/sandboxly/orchard-commons>
   - block2 0.5.1 <https://github.com/madsmtm/objc2>
   - block2 0.6.2 <https://github.com/madsmtm/objc2>
   - block 0.1.6 <http://github.com/SSheldon/rust-block>
