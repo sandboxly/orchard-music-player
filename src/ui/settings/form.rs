@@ -1,5 +1,5 @@
 //! Form controls for the settings dialog, the scheme editor and the color
-//! picker, in Orchard Commander's look (ported from `oc_ui`'s settings form
+//! picker, in Orchard Commander's look (ported from its settings form
 //! and widgets): a combo box (a field plus a popup list), a spin box, a
 //! checkbox, push buttons, headings, and the dialog box they sit in. Their
 //! values always come from the caller, so the state here is only what is
