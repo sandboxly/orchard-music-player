@@ -1,18 +1,17 @@
-//! Drawing: a pure function of the app state into an `oc_grid::Frame`.
+//! Drawing: a pure function of the app state into an `orchard_grid::Frame`.
 //! The layout is recomputed, never stored; mouse hit testing uses it too.
 
 pub mod settings;
-pub mod widgets;
 
-use oc_grid::{CellRect, Flags, Frame, ImageId, ImagePlacement, Layer, PxRect, Rgba, Style, elide_right};
+use orchard_grid::{CellRect, Flags, Frame, ImageId, ImagePlacement, Layer, PxRect, Rgba, Style, elide_right};
+use orchard_kit::widgets::{self, BoxFrame, DrawCtx, Scrollbar, contains, draw_key_bar, fill, inset, put, width};
+use orchard_theme::mix;
 
 use crate::app::{App, Modal, format_time};
 use crate::audio::State;
 use crate::browser::Mode as BrowseMode;
 use crate::playlist::Repeat;
 use crate::spectrum;
-use crate::theme::mix;
-use widgets::{BoxFrame, DrawCtx, Scrollbar, contains, draw_key_bar, fill, inset, put, width};
 
 pub const FKEYS: &[(&str, &str)] = &[
     ("F1", "Help"),
@@ -631,7 +630,7 @@ fn draw_modal(app: &App, m: &Modal, f: &mut Frame, ctx: &DrawCtx) {
                 let sw_w = 16u16;
                 put(f, list.col + 1, row, &s.name, Style::new(fg, bg), list.cols.saturating_sub(sw_w + 3));
                 // Swatches: the scheme's own colors.
-                let sc = crate::theme::Colors::from_scheme(s);
+                let sc = orchard_theme::Colors::from_scheme(s);
                 let swatches = [sc.background, sc.surface, sc.foreground, sc.accent, sc.border_active, sc.success, sc.warning, sc.error];
                 let x0 = list.col + list.cols.saturating_sub(sw_w + 1);
                 for (k, col) in swatches.iter().enumerate() {

@@ -2,9 +2,8 @@
 //! current colors, frame style and font (the dialog covers much of the
 //! window behind it, which previews the rest).
 
-use oc_grid::{CellRect, Flags, Frame, Style};
-
-use crate::ui::widgets::{BoxFrame, DrawCtx, bottom, fill, put, put_elided, right, width};
+use orchard_grid::{CellRect, Flags, Frame, Style};
+use orchard_kit::widgets::{BoxFrame, DrawCtx, bottom, fill, put, put_elided, right, width};
 
 const TRACKS: [(&str, &str); 3] = [("Teardrop", "5:30"), ("Roads", "5:05"), ("Kerala", "4:01")];
 const PLAYING: usize = 0;
@@ -87,8 +86,9 @@ pub fn draw(f: &mut Frame, r: CellRect, ctx: &DrawCtx) {
 
 #[cfg(test)]
 mod tests {
+    use orchard_theme::Theme;
+
     use super::*;
-    use crate::theme::Theme;
 
     #[test]
     fn sample_shows_tracks_cursor_and_keys() {

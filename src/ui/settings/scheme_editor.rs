@@ -3,21 +3,21 @@
 //! focused one, opens the [`ColorPicker`]), its name and dark flag,
 //! previewed live on the whole player. Built-in schemes are read-only:
 //! changes to them are saved as a new scheme. Schemes are saved with
-//! oc-config into the color-schemes folder Orchard Commander reads too;
+//! orchard-theme into the color-schemes folder Orchard Commander reads too;
 //! what the player doesn't use (the syntax highlighting style) is kept as
 //! it was.
 
-use oc_config::ColorScheme;
-use oc_config::themes::{self, COLOR_ROLES};
-use oc_grid::{CellRect, Frame, Rgba, Style};
+use orchard_grid::{CellRect, Frame, Rgba, Style};
+use orchard_kit::input::{Key, KeyEvent, MouseEvent, MouseKind, Named};
+use orchard_kit::widgets::{DrawCtx, TextField, bottom, contains, fill, put, right};
+use orchard_theme::schemes::{self, COLOR_ROLES};
+use orchard_theme::{ColorScheme, SchemeError};
 
 use super::Slot;
 use super::color_picker::{self, ColorPicker, PickerOutcome};
 use super::form::{self, ButtonRow, RowOutcome};
 use crate::app::App;
-use crate::input::{Key, KeyEvent, MouseEvent, MouseKind, Named};
 use crate::settings::Settings;
-use crate::ui::widgets::{DrawCtx, TextField, bottom, contains, fill, put, right};
 
 const SAVE: &str = "Save color scheme";
 const DELETE: &str = "Delete color scheme";
@@ -102,7 +102,7 @@ impl SchemeEditor {
     /// starting from it. The player shows it at once.
     pub fn open(app: &mut App, slot: Slot, create: bool) -> SchemeEditor {
         let from = app.scheme(slot.value(&app.settings));
-        let builtin = themes::is_builtin(&from.name);
+        let builtin = schemes::is_builtin(&from.name);
         let (name, original) = if create {
             (unique_name(app, &format!("{} (copy)", from.name)), None)
         } else if builtin {
@@ -116,7 +116,7 @@ impl SchemeEditor {
     }
 
     fn new(slot: Slot, scheme: ColorScheme, name: String, original: Option<String>, create: bool) -> Self {
-        let hex = COLOR_ROLES.iter().map(|(role, _, _)| TextField::new(scheme.color(role).unwrap_or_default())).collect();
+        let hex = COLOR_ROLES.iter().map(|(role, _, _)| TextField::new(scheme.color(role).unwrap_or_default()).flush()).collect();
         let labels: &[&str] = if original.is_some() { &[SAVE, DELETE, CANCEL] } else { &[SAVE, CANCEL] };
         SchemeEditor {
             slot,
@@ -124,7 +124,7 @@ impl SchemeEditor {
             original,
             create,
             scheme,
-            name: TextField::new(name),
+            name: TextField::new(name).flush(),
             hex,
             buttons: ButtonRow::new(labels),
             focus: Focus::Name,
@@ -261,7 +261,7 @@ impl SchemeEditor {
     pub fn save(&mut self, app: &mut App) -> EditorOutcome {
         let mut scheme = self.scheme.clone();
         scheme.name = self.name.text.trim().to_owned();
-        match themes::save_user_scheme(&app.schemes_dir, &scheme, self.original.as_deref()) {
+        match schemes::save_user_scheme(&app.schemes_dir, &scheme, self.original.as_deref()) {
             Ok(_) => {
                 app.refresh_schemes();
                 let (slot, name, old) = (self.slot, scheme.name, self.original.clone());
@@ -276,11 +276,11 @@ impl SchemeEditor {
                 });
                 EditorOutcome::Close
             }
-            Err(oc_config::ConfigError::Invalid(msg)) => {
+            Err(SchemeError::Invalid(msg)) => {
                 self.error = Some(msg);
                 EditorOutcome::Stay
             }
-            Err(oc_config::ConfigError::Io(e)) => {
+            Err(SchemeError::Io(e)) => {
                 self.error = Some(format!(
                     "Can't save the color scheme: {} — check that you can write to {}",
                     crate::meta::io_reason(&e),
@@ -294,7 +294,7 @@ impl SchemeEditor {
     /// Delete the user scheme being edited (after the question).
     pub fn delete(&mut self, app: &mut App) -> EditorOutcome {
         let Some(name) = self.original.clone() else { return EditorOutcome::Stay };
-        match themes::delete_user_scheme(&app.schemes_dir, &name) {
+        match schemes::delete_user_scheme(&app.schemes_dir, &name) {
             Ok(()) => {
                 app.refresh_schemes();
                 let defaults = Settings::default();

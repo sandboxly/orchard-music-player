@@ -8,7 +8,7 @@ use std::process::ExitCode;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use oc_grid::{Frame, HeadlessRenderer};
+use orchard_grid::{Frame, HeadlessRenderer};
 use orchard_music_player::App;
 use orchard_music_player::app::{Modal, NowPlaying};
 use orchard_music_player::audio::{self, State};
@@ -97,7 +97,7 @@ pub fn run(args: &[String]) -> ExitCode {
     let o = parse(&args[1..]);
     let mut app = App::new(Arc::new(|| {}), false, false);
     if let Some(t) = &o.theme {
-        let s = oc_config::themes::get_scheme(&orchard_music_player::theme::schemes_dir(), t);
+        let s = orchard_theme::schemes::get_scheme(&orchard_theme::dirs::schemes_dir(), t);
         app.apply_scheme(s);
     }
     if let Some(v) = o.vis {
@@ -142,7 +142,7 @@ pub fn run(args: &[String]) -> ExitCode {
         Some("filter") => {
             app.start_filter();
             if let Some(f) = &mut app.filter {
-                f.field = ui::widgets::TextField::new(o.filter.as_deref().unwrap_or("ai"));
+                f.field = orchard_kit::widgets::TextField::new(o.filter.as_deref().unwrap_or("ai")).flush();
             }
             app.refilter();
         }
@@ -167,7 +167,7 @@ pub fn run(args: &[String]) -> ExitCode {
 }
 
 /// PNG, or lossless WebP for a `.webp` name.
-fn save(img: &oc_grid::RgbaImage, out: &Path) -> Result<(), String> {
+fn save(img: &orchard_grid::RgbaImage, out: &Path) -> Result<(), String> {
     let webp = out.extension().is_some_and(|e| e.eq_ignore_ascii_case("webp"));
     if !webp {
         return img.save_png(out).map_err(|e| e.to_string());

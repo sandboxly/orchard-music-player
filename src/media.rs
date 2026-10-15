@@ -6,11 +6,11 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use orchard_kit::tasks::Tasks;
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, MediaPosition, PlatformConfig, SeekDirection};
 
 use crate::app::App;
 use crate::audio::State;
-use crate::tasks::Tasks;
 
 /// What the system was last told.
 #[derive(Clone, Debug, Default, PartialEq)]

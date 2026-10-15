@@ -4,18 +4,19 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use oc_config::themes::{self, ColorScheme};
+use orchard_kit::input::{Key, KeyEvent, MouseEvent, MouseKind, Named};
+use orchard_kit::tasks::{Tasks, Waker};
+use orchard_kit::widgets::TextField;
+use orchard_theme::Theme;
+use orchard_theme::schemes::{self, ColorScheme};
 
 use crate::audio::{Notice, Player, State, TrackInfo};
 use crate::browser::{self, Browser};
-use crate::input::{Key, KeyEvent, MouseEvent, MouseKind, Named};
 use crate::meta::{self, Details, GainMode, ReplayGain, Tags};
 use crate::playlist::{self, Playlist, Repeat};
 use crate::settings::{self, Settings};
 use crate::spectrum::{self, Analyzer};
-use crate::tasks::{Tasks, Waker};
-use crate::theme::Theme;
-use crate::ui::{self, widgets::TextField};
+use crate::ui;
 
 /// The track that plays (or is paused).
 #[derive(Clone, Debug, Default)]
@@ -31,13 +32,19 @@ pub struct NowPlaying {
 }
 
 /// The playlist's quick filter (/): only entries matching every word show.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Filter {
     pub field: TextField,
     /// Keys go to the field.
     pub editing: bool,
     /// Matching entry indices, in playlist order.
     pub matches: Vec<usize>,
+}
+
+impl Default for Filter {
+    fn default() -> Self {
+        Filter { field: TextField::default().flush(), editing: false, matches: Vec::new() }
+    }
 }
 
 pub struct Prompt {
@@ -134,8 +141,8 @@ impl App {
     pub fn new(wake: Waker, persist: bool, audio: bool) -> App {
         let config_dir = settings::config_dir();
         let settings = if persist { Settings::load(&config_dir) } else { Settings::default() };
-        let schemes_dir = crate::theme::schemes_dir();
-        let schemes = themes::all_schemes(&schemes_dir);
+        let schemes_dir = orchard_theme::dirs::schemes_dir();
+        let schemes = schemes::all_schemes(&schemes_dir);
         let system_dark = true;
         let theme = Theme::new(&settings.appearance(), scheme_in(&schemes, settings.appearance().scheme_name(system_dark)));
         let tasks = Tasks::new(4, wake.clone());
@@ -272,7 +279,7 @@ impl App {
 
     /// Read the color-schemes folder again (Orchard Commander may have saved one).
     pub fn refresh_schemes(&mut self) {
-        self.schemes = themes::all_schemes(&self.schemes_dir);
+        self.schemes = schemes::all_schemes(&self.schemes_dir);
     }
 
     /// Show `scheme` on the whole player without choosing it (the editor's preview).
@@ -875,7 +882,7 @@ impl App {
         self.modal = Some(Modal::Prompt(Prompt {
             title: "Save playlist".into(),
             label: "Save as M3U:".into(),
-            field: TextField::new(path.to_string_lossy()),
+            field: TextField::new(path.to_string_lossy()).flush(),
             action: PromptAction::SavePlaylist,
         }));
     }
@@ -907,7 +914,7 @@ impl App {
 
     /// ⌘+ / ⌘- / ⌘0.
     pub fn zoom(&mut self, step: i64) {
-        let (lo, hi) = themes::FONT_SIZE_RANGE;
+        let (lo, hi) = schemes::FONT_SIZE_RANGE;
         let size = if step == 0 { settings::DEFAULT_FONT_SIZE } else { (self.settings.font_size + step).clamp(lo, hi) };
         self.update_settings(|s| s.font_size = size);
     }
@@ -1210,8 +1217,8 @@ impl App {
             return;
         }
         let l = ui::layout(self);
-        let hit = |r: oc_grid::CellRect| ui::widgets::contains(r, ev.col, ev.row);
-        let frac = |r: oc_grid::CellRect, cw: f32| {
+        let hit = |r: orchard_grid::CellRect| orchard_kit::widgets::contains(r, ev.col, ev.row);
+        let frac = |r: orchard_grid::CellRect, cw: f32| {
             ((ev.x - r.col as f32 * cw) / (r.cols as f32 * cw).max(1.0)).clamp(0.0, 1.0) as f64
         };
         let cw = self.cell_px.0;
@@ -1234,9 +1241,9 @@ impl App {
                         }
                     }
                 } else if hit(l.footer) {
-                    if let Some((_, i)) = ui::widgets::key_bar_items(l.footer, ui::FKEYS)
+                    if let Some((_, i)) = orchard_kit::widgets::key_bar_items(l.footer, ui::FKEYS)
                         .into_iter()
-                        .find(|(r, _)| ui::widgets::contains(*r, ev.col, ev.row))
+                        .find(|(r, _)| orchard_kit::widgets::contains(*r, ev.col, ev.row))
                     {
                         self.fkey(i as u8 + 1);
                     }
@@ -1283,7 +1290,7 @@ impl App {
             return;
         }
         let Some(list) = ui::dialog_list_rect(self) else { return };
-        let hit = ui::widgets::contains(list, ev.col, ev.row);
+        let hit = orchard_kit::widgets::contains(list, ev.col, ev.row);
         match (&mut self.modal, ev.kind) {
             (Some(Modal::Browser(b)), MouseKind::Down) if hit => {
                 let row = b.top + (ev.row - list.row) as usize;
@@ -1324,7 +1331,7 @@ fn scheme_in(schemes: &[ColorScheme], name: &str) -> ColorScheme {
     schemes
         .iter()
         .find(|s| s.name == name)
-        .or_else(|| themes::builtin_scheme(themes::DEFAULT_SCHEME))
+        .or_else(|| schemes::builtin_scheme(schemes::DEFAULT_SCHEME))
         .cloned()
         .unwrap_or_else(|| Theme::default_dark().scheme)
 }
@@ -1345,8 +1352,9 @@ pub fn format_time(secs: f64) -> String {
 
 #[cfg(test)]
 mod tests {
+    use orchard_kit::input::KeyEvent;
+
     use super::*;
-    use crate::input::KeyEvent;
     use crate::playlist::Entry;
 
     fn app_with(titles: &[(&str, &str)]) -> App {
@@ -1393,7 +1401,7 @@ mod tests {
         let mut app = app_with(&[("Air", "Kelly"), ("Moby", "Porcelain"), ("Air", "Talisman")]);
         app.start_filter();
         type_text(&mut app, "air");
-        app.handle_key(&KeyEvent { key: crate::input::Key::Named(Named::Tab), mods: Default::default(), text: None });
+        app.handle_key(&KeyEvent { key: orchard_kit::input::Key::Named(Named::Tab), mods: Default::default(), text: None });
         app.handle_key(&KeyEvent::named(Named::Delete));
         assert_eq!(app.playlist.len(), 2);
         assert_eq!(app.filter.as_ref().unwrap().matches, [1]);

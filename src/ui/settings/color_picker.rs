@@ -3,11 +3,11 @@
 //! bar beside it, the numbers, a hex field, "Use color" and Cancel. The
 //! scheme editor owns it while it is open and takes the color on "Use color".
 
-use oc_grid::{CellRect, Frame, Rgba, Style};
+use orchard_grid::{CellRect, Frame, Rgba, Style};
+use orchard_kit::input::{Key, KeyEvent, MouseEvent, MouseKind, Named};
+use orchard_kit::widgets::{DrawCtx, TextField, bottom, contains, fill, is_empty, put, right};
 
 use super::form::{self, ButtonRow, RowOutcome};
-use crate::input::{Key, KeyEvent, MouseEvent, MouseKind, Named};
-use crate::ui::widgets::{DrawCtx, TextField, bottom, contains, fill, is_empty, put, right};
 
 const WIDTH: u16 = 74;
 const ROWS: u16 = 13;
@@ -88,7 +88,7 @@ pub fn clamp_hex(field: &mut TextField) -> Option<String> {
         field.cursor -= 1;
     }
     let text = field.text.trim().to_lowercase();
-    oc_config::themes::is_color(&text).then_some(text)
+    orchard_theme::schemes::is_color(&text).then_some(text)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -155,7 +155,7 @@ impl ColorPicker {
             sat: 0,
             val: 0,
             well: (0..48).find(|&i| basic_color(i) == color).unwrap_or(0),
-            hex: TextField::default(),
+            hex: TextField::default().flush(),
             buttons: ButtonRow::new(&["Use color", "Cancel"]),
             focus: Focus::Field,
             drag: None,

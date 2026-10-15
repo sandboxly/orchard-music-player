@@ -5,10 +5,9 @@
 //! values always come from the caller, so the state here is only what is
 //! open and where its cursor is.
 
-use oc_grid::{CellRect, Flags, Frame, Layer, PxRect, Style};
-
-use crate::input::{Key, KeyEvent, MouseEvent, MouseKind, Named};
-use crate::ui::widgets::{self, BoxFrame, DrawCtx, Scrollbar, bottom, contains, fill, inset, put, put_elided, right, width};
+use orchard_grid::{CellRect, Flags, Frame, Layer, PxRect, Style};
+use orchard_kit::input::{Key, KeyEvent, MouseEvent, MouseKind, Named};
+use orchard_kit::widgets::{self, BoxFrame, DrawCtx, Scrollbar, bottom, contains, fill, inset, put, put_elided, right, width};
 
 /// One entry of a combo box; `None` is a separator (between the built-in
 /// and the user's color schemes).
@@ -146,7 +145,7 @@ pub fn wrap(text: &str, w: usize) -> Vec<String> {
     let mut lines = Vec::new();
     let mut line = String::new();
     for word in text.split_whitespace() {
-        if !line.is_empty() && oc_grid::str_width(&line) + 1 + oc_grid::str_width(word) > w {
+        if !line.is_empty() && orchard_grid::str_width(&line) + 1 + orchard_grid::str_width(word) > w {
             lines.push(std::mem::take(&mut line));
         }
         if !line.is_empty() {

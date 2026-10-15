@@ -1,6 +1,6 @@
-//! What a track is: tags for the playlist (oc-rename's `AudioTags` provider,
-//! the same reader Orchard Commander's multi-rename uses) and, for the track
-//! that plays, the stream details and cover art (lofty).
+//! What a track is: tags for the playlist (orchard-metadata's `AudioTags`
+//! provider, the same reader Orchard Commander's multi-rename uses) and, for
+//! the track that plays, the stream details and cover art (lofty).
 
 use std::fs::File;
 use std::io::BufReader;
@@ -10,7 +10,7 @@ use std::sync::Arc;
 use lofty::config::ParseOptions;
 use lofty::prelude::*;
 use lofty::probe::Probe;
-use oc_rename::metadata::{AudioTags, MetadataProvider, Source};
+use orchard_metadata::{AudioTags, MetadataProvider, Source};
 
 /// Extensions the player opens (what symphonia decodes).
 pub const AUDIO_EXTENSIONS: &[&str] = &["mp3", "ogg", "oga", "flac", "wav", "m4a", "m4b", "aac", "mp4", "aiff", "aif", "caf", "mka", "webm", "opus"];
@@ -102,7 +102,7 @@ pub fn read_tags(path: &Path) -> Tags {
     }
 }
 
-/// oc-rename's "1h02m03s" / "3m25s" / "45s" back to seconds.
+/// orchard-metadata's "1h02m03s" / "3m25s" / "45s" back to seconds.
 fn parse_duration(text: &str) -> Option<f64> {
     let mut total = 0u64;
     let mut num = String::new();

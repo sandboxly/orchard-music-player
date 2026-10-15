@@ -2,7 +2,7 @@
 
 A themeable, Winamp-style music player from the Orchard family. It is
 drawn as a character grid on the GPU, like Orchard Commander: same
-renderer (`oc-grid`), same color schemes, same frame look.
+renderer (`orchard-grid`), same color schemes, same frame look.
 
 ![screenshot](docs/screenshot.png)
 
@@ -46,14 +46,16 @@ cargo build --release
 ./target/release/orchard-music-player [FILE|FOLDER|PLAYLIST.m3u]...
 ```
 
-It uses crates from [Orchard Commander](https://github.com/sandboxly/orchard-commander),
-fetched by cargo at a pinned Commander release:
+It uses the crates the Orchard apps share,
+[Orchard Commons](https://github.com/sandboxly/orchard-commons), fetched by
+cargo at a pinned release tag:
 
-| crate       | used for                                         |
-|-------------|--------------------------------------------------|
-| `oc-grid`   | the wgpu character-grid renderer and winit       |
-| `oc-config` | color schemes, frame styles, the schemes folder  |
-| `oc-rename` | reading audio tags (its `AudioTags` provider)    |
+| crate              | used for                                            |
+|--------------------|-----------------------------------------------------|
+| `orchard-grid`     | the wgpu character-grid renderer and winit          |
+| `orchard-theme`    | color schemes, frame styles, the schemes folder     |
+| `orchard-kit`      | background tasks, input events, widgets, clipboard  |
+| `orchard-metadata` | reading audio tags (its `AudioTags` provider)       |
 
 ## Keys
 

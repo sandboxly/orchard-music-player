@@ -39,17 +39,17 @@ pub mod scheme_editor;
 
 use std::collections::{HashMap, HashSet};
 
-use oc_config::ColorScheme;
-use oc_config::themes::{self, FONT_SIZE_RANGE, FRAME_STYLES, LINE_SPACING_RANGE};
-use oc_grid::{CellRect, Frame, Style};
+use orchard_grid::{CellRect, Frame, Style};
+use orchard_kit::input::{Key, KeyEvent, MouseEvent, MouseKind, Named};
+use orchard_kit::widgets::{DrawCtx, bottom, clip, contains, fill, is_empty, put_elided, right, width};
+use orchard_theme::ColorScheme;
+use orchard_theme::schemes::{self, FONT_SIZE_RANGE, FRAME_STYLES, LINE_SPACING_RANGE};
 
 use self::form::{Choice, Popup, PopupOutcome};
 use self::scheme_editor::{EditorOutcome, SchemeEditor};
 use crate::app::{App, Modal};
-use crate::input::{Key, KeyEvent, MouseEvent, MouseKind, Named};
 use crate::meta::GainMode;
 use crate::settings::Settings;
-use crate::ui::widgets::{DrawCtx, bottom, clip, contains, fill, is_empty, put_elided, right, width};
 
 pub const TITLE: &str = "Settings";
 
@@ -111,7 +111,7 @@ fn load_fonts(app: &mut App) {
     }
     app.tasks.spawn(
         || {
-            let lib = oc_grid::FontLibrary::system();
+            let lib = orchard_grid::FontLibrary::system();
             (lib.families(true), lib.resolve_family(""))
         },
         |app, (mono, automatic)| {
@@ -124,7 +124,7 @@ fn load_fonts(app: &mut App) {
 
 /// The same lookups, done right away (screenshots).
 pub fn load_fonts_now(app: &mut App) {
-    let lib = oc_grid::FontLibrary::system();
+    let lib = orchard_grid::FontLibrary::system();
     app.fonts.mono = Some(lib.families(true));
     app.fonts.automatic = lib.resolve_family("");
     app.fonts.started = true;
@@ -154,7 +154,7 @@ fn request_styles(app: &mut App) {
     app.tasks.spawn(
         {
             let family = family.clone();
-            move || oc_grid::FontLibrary::system().styles(&family)
+            move || orchard_grid::FontLibrary::system().styles(&family)
         },
         move |app, styles| {
             app.fonts.styles.insert(family, styles);
@@ -330,8 +330,8 @@ pub fn appearance_page(s: &Settings, env: &Env) -> Vec<Row> {
         s.follow_system_appearance,
         |app, on| app.update_settings(|s| s.follow_system_appearance = on),
     )]));
-    let builtin: Vec<&str> = env.schemes.iter().map(|s| s.name.as_str()).filter(|n| themes::is_builtin(n)).collect();
-    let custom: Vec<&str> = env.schemes.iter().map(|s| s.name.as_str()).filter(|n| !themes::is_builtin(n)).collect();
+    let builtin: Vec<&str> = env.schemes.iter().map(|s| s.name.as_str()).filter(|n| schemes::is_builtin(n)).collect();
+    let custom: Vec<&str> = env.schemes.iter().map(|s| s.name.as_str()).filter(|n| !schemes::is_builtin(n)).collect();
     let mut items: Vec<Choice> = builtin.iter().map(|n| Some(n.to_string())).collect();
     if !custom.is_empty() {
         items.push(None);

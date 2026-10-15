@@ -5,7 +5,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use oc_config::themes::Appearance;
+use orchard_theme::schemes::Appearance;
 use serde::{Deserialize, Serialize};
 
 /// `$ORCHARD_MUSIC_PLAYER_CONFIG_DIR`, or the platform's config folder.

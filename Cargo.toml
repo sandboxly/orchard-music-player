@@ -12,14 +12,17 @@ name = "orchard-music-player"
 path = "src/main.rs"
 
 [dependencies]
-# The character-grid renderer Orchard Commander draws into (wgpu + winit).
-# Shared with Orchard Commander, pinned to a release tag (for a local change
-# to them, override with a [patch] section pointing at a checkout).
-oc-grid = { git = "https://github.com/sandboxly/orchard-commander", tag = "v2.0.1" }
-# Color schemes, frame styles and the shared color-schemes folder.
-oc-config = { git = "https://github.com/sandboxly/orchard-commander", tag = "v2.0.1" }
-# Audio tag reading (the multi-rename tool's AudioTags provider).
-oc-rename = { git = "https://github.com/sandboxly/orchard-commander", tag = "v2.0.1" }
+# Shared with the other Orchard apps (Orchard Commons), pinned to a release
+# tag (for a local change to them, override with a [patch] section pointing
+# at a checkout). The character-grid renderer (wgpu + winit).
+orchard-grid = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.1.0" }
+# Color schemes, frame styles and the color-schemes folder shared with
+# Orchard Commander.
+orchard-theme = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.1.0" }
+# Background tasks, input events, grid widgets and the clipboard.
+orchard-kit = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.1.0" }
+# Audio tag reading (the AudioTags provider).
+orchard-metadata = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.1.0" }
 symphonia = { version = "0.6", features = ["all"] }
 # Opus (libopus, built from the bundled source).
 symphonia-adapter-libopus = "0.3"
@@ -27,7 +30,7 @@ symphonia-adapter-libopus = "0.3"
 souvlaki = { version = "0.8", default-features = false, features = ["use_zbus"] }
 cpal = "0.18.2"
 rustfft = "6.4"
-# Same version as oc-rename: stream properties and cover art.
+# Same version as orchard-metadata: stream properties and cover art.
 lofty = "0.24"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "bmp", "webp"] }
 serde = { version = "1.0", features = ["derive"] }

@@ -11,17 +11,16 @@ use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use oc_grid::winit;
-use oc_grid::{FontConfig, Frame, Rendered, WindowRenderer};
+use orchard_grid::winit;
+use orchard_grid::{FontConfig, Frame, Rendered, WindowRenderer};
+use orchard_kit::input::{MouseEvent, MouseKind};
 use orchard_music_player::App;
-use orchard_music_player::input::{Key, KeyEvent, Mods, MouseEvent, MouseKind, Named};
 use orchard_music_player::ui;
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalPosition, PhysicalSize};
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
-use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
+use winit::keyboard::ModifiersState;
 use winit::window::{Window, WindowId};
 
 mod screenshot;
@@ -141,42 +140,6 @@ impl Platform {
     }
 }
 
-fn convert_key(ev: &winit::event::KeyEvent, mods: ModifiersState) -> Option<KeyEvent> {
-    let m = Mods {
-        shift: mods.shift_key(),
-        ctrl: mods.control_key(),
-        alt: mods.alt_key(),
-        logo: mods.super_key(),
-    };
-    let key = match ev.key_without_modifiers() {
-        WKey::Named(n) => Key::Named(match n {
-            NamedKey::ArrowUp => Named::Up,
-            NamedKey::ArrowDown => Named::Down,
-            NamedKey::ArrowLeft => Named::Left,
-            NamedKey::ArrowRight => Named::Right,
-            NamedKey::PageUp => Named::PageUp,
-            NamedKey::PageDown => Named::PageDown,
-            NamedKey::Home => Named::Home,
-            NamedKey::End => Named::End,
-            NamedKey::Enter => Named::Enter,
-            NamedKey::Escape => Named::Escape,
-            NamedKey::Backspace => Named::Backspace,
-            NamedKey::Delete => Named::Delete,
-            NamedKey::Insert => Named::Insert,
-            NamedKey::Tab => Named::Tab,
-            NamedKey::Space => return Some(KeyEvent { key: Key::Char(' '), mods: m, text: Some(" ".into()) }),
-            NamedKey::MediaPlayPause => return Some(KeyEvent::char(' ')),
-            n => {
-                let f = format!("{n:?}");
-                Named::F(f.strip_prefix('F').and_then(|d| d.parse::<u8>().ok())?)
-            }
-        }),
-        WKey::Character(s) => Key::Char(s.chars().next()?.to_lowercase().next()?),
-        _ => return None,
-    };
-    Some(KeyEvent { key, mods: m, text: ev.text.as_ref().map(|t| t.to_string()) })
-}
-
 impl ApplicationHandler<UserEvent> for Platform {
     fn resumed(&mut self, el: &ActiveEventLoop) {
         if self.win.is_some() {
@@ -272,7 +235,7 @@ impl ApplicationHandler<UserEvent> for Platform {
                 input = false;
             }
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
-                if let Some(k) = convert_key(&event, self.mods) {
+                if let Some(k) = orchard_kit::winit::convert_key(&event, self.mods) {
                     self.app.handle_key(&k);
                 }
             }
@@ -465,7 +428,7 @@ fn main() -> ExitCode {
         }
     };
     let proxy = Mutex::new(event_loop.create_proxy());
-    let wake: orchard_music_player::tasks::Waker = Arc::new(move || {
+    let wake: orchard_kit::tasks::Waker = Arc::new(move || {
         let _ = proxy.lock().unwrap().send_event(UserEvent::Wake);
     });
     let app = App::new(wake, true, true);

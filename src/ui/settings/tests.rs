@@ -4,11 +4,11 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use oc_config::themes;
-use oc_grid::Rgba;
+use orchard_grid::Rgba;
+use orchard_kit::input::{Mods, MouseKind};
+use orchard_theme::schemes;
 
 use super::*;
-use crate::input::{Mods, MouseKind};
 use crate::meta::GainMode;
 
 fn app_in(dir: &Path) -> App {
@@ -121,7 +121,7 @@ fn changes_apply_at_once_and_are_saved() {
     // A color scheme: → picks the next one, the player shows it.
     focus_on(&mut app, "scheme");
     key(&mut app, Named::Right);
-    let second = themes::builtin_schemes()[1].name.clone();
+    let second = schemes::builtin_schemes()[1].name.clone();
     assert_eq!(app.settings.color_scheme, second);
     assert_eq!(app.theme.scheme.name, second);
     assert_eq!(Settings::load(tmp.path()).color_scheme, second, "saved at once");
@@ -147,7 +147,7 @@ fn changes_apply_at_once_and_are_saved() {
     focus_on(&mut app, "frame_style");
     key(&mut app, Named::Right);
     assert_eq!(app.settings.frame_style, "single");
-    assert_eq!(app.theme.frame, oc_grid::BoxStyle::from_name("single").unwrap());
+    assert_eq!(app.theme.frame, orchard_grid::BoxStyle::from_name("single").unwrap());
 
     // Following the system: light and dark mode get a list each.
     focus_on(&mut app, "follow_system");
@@ -216,7 +216,7 @@ fn restore_defaults_resets_the_page() {
         (&s.color_scheme, s.follow_system_appearance, &s.dark_scheme, s.font_size, s.line_spacing, &s.frame_style, &s.font_style),
         (&d.color_scheme, d.follow_system_appearance, &d.dark_scheme, d.font_size, d.line_spacing, &d.frame_style, &d.font_style)
     );
-    assert_eq!(app.theme, crate::theme::Theme::new(&d.appearance(), app.scheme(&d.color_scheme)));
+    assert_eq!(app.theme, orchard_theme::Theme::new(&d.appearance(), app.scheme(&d.color_scheme)));
     assert_eq!(s.replay_gain, "album", "the Playback page has its own Restore defaults");
     key(&mut app, Named::Escape);
     app.open_settings();
@@ -251,7 +251,7 @@ fn scheme_editor_saves_renames_and_deletes_in_the_shared_folder() {
     let tmp = tempfile::tempdir().unwrap();
     let dir = tmp.path().join("color-schemes");
     let mut app = app_in(tmp.path());
-    let monokai = themes::builtin_scheme("monokai").unwrap().clone();
+    let monokai = schemes::builtin_scheme("monokai").unwrap().clone();
     app.open_settings();
 
     // Editing a built-in scheme makes a copy under a new name.
@@ -273,7 +273,7 @@ fn scheme_editor_saves_renames_and_deletes_in_the_shared_folder() {
     key(&mut app, Named::Enter);
     assert!(dialog(&app).editor.is_none());
     assert_eq!(app.settings.color_scheme, "monokai (custom)");
-    let saved = themes::all_schemes(&dir).into_iter().find(|s| s.name == "monokai (custom)").expect("saved");
+    let saved = schemes::all_schemes(&dir).into_iter().find(|s| s.name == "monokai (custom)").expect("saved");
     assert_eq!(saved.accent, "#123456");
     assert_eq!(saved.pygments_style, monokai.pygments_style, "fields the player doesn't use are kept");
     assert!(app.schemes.iter().any(|s| s.name == "monokai (custom)"));
@@ -287,7 +287,7 @@ fn scheme_editor_saves_renames_and_deletes_in_the_shared_folder() {
     type_text(&mut app, "Mine");
     key(&mut app, Named::Enter);
     assert_eq!(app.settings.color_scheme, "Mine");
-    let names: Vec<String> = themes::all_schemes(&dir).into_iter().filter(|s| !themes::is_builtin(&s.name)).map(|s| s.name).collect();
+    let names: Vec<String> = schemes::all_schemes(&dir).into_iter().filter(|s| !schemes::is_builtin(&s.name)).map(|s| s.name).collect();
     assert_eq!(names, ["Mine"]);
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1, "the old file is gone");
 
