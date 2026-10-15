@@ -50,12 +50,13 @@ It uses the crates the Orchard apps share,
 [Orchard Commons](https://github.com/sandboxly/orchard-commons), fetched by
 cargo at a pinned release tag:
 
-| crate              | used for                                            |
-|--------------------|-----------------------------------------------------|
-| `orchard-grid`     | the wgpu character-grid renderer and winit          |
-| `orchard-theme`    | color schemes, frame styles, the schemes folder     |
-| `orchard-kit`      | background tasks, input events, widgets, clipboard  |
-| `orchard-metadata` | reading audio tags (its `AudioTags` provider)       |
+| crate              | used for                                                  |
+|--------------------|-----------------------------------------------------------|
+| `orchard-grid`     | the wgpu character-grid renderer and winit                |
+| `orchard-theme`    | color schemes, frame styles, the schemes folder           |
+| `orchard-kit`      | background tasks, input events, widgets, forms, clipboard |
+| `orchard-shell`    | the window, event loop, command line, settings files      |
+| `orchard-metadata` | reading audio tags (its `AudioTags` provider)             |
 
 ## Keys
 

@@ -19,8 +19,10 @@ orchard-grid = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0
 # Color schemes, frame styles and the color-schemes folder shared with
 # Orchard Commander.
 orchard-theme = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.1.0" }
-# Background tasks, input events, grid widgets and the clipboard.
+# Background tasks, input events, grid widgets, dialog forms and the clipboard.
 orchard-kit = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.1.0" }
+# The window, event loop, command line and settings files.
+orchard-shell = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.1.0" }
 # Audio tag reading (the AudioTags provider).
 orchard-metadata = { git = "https://github.com/sandboxly/orchard-commons", tag = "v0.1.0" }
 symphonia = { version = "0.6", features = ["all"] }
@@ -34,14 +36,12 @@ rustfft = "6.4"
 lofty = "0.24"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "bmp", "webp"] }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 dirs = "6.0"
 log = "0.4"
 
 [target.'cfg(windows)'.dependencies]
-# Print --version/--self-test output to the console that started the app
-# (a GUI program there, see src/main.rs).
-windows-sys = { version = "0.61", features = ["Win32_System_Console", "Win32_Storage_FileSystem"] }
+# The drive list in the file browser (src/browser.rs).
+windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
 
 [build-dependencies]
 # The Windows icon and version resource (build.rs).

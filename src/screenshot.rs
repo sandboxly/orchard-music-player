@@ -8,7 +8,7 @@ use std::process::ExitCode;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use orchard_grid::{Frame, HeadlessRenderer};
+use orchard_grid::Frame;
 use orchard_music_player::App;
 use orchard_music_player::app::{Modal, NowPlaying};
 use orchard_music_player::audio::{self, State};
@@ -18,6 +18,7 @@ use orchard_music_player::playlist::Entry;
 use orchard_music_player::spectrum;
 use orchard_music_player::ui;
 use orchard_music_player::ui::settings;
+use orchard_shell::shot;
 
 const DEMO: &[(&str, &str, &str, f64)] = &[
     ("Boards of Canada", "Roygbiv", "Music Has the Right to Children", 151.0),
@@ -43,11 +44,10 @@ const COVER_ID: u64 = 1;
 const WARMUP_FRAMES: usize = 40;
 const FPS: f64 = 60.0;
 
+/// The options only this app's screenshots have (the common ones are
+/// `orchard_shell::shot`'s).
 #[derive(Default)]
 struct Options {
-    size: (u16, u16),
-    theme: Option<String>,
-    modal: Option<String>,
     music: Option<PathBuf>,
     /// 1-based playlist position of the playing track.
     play: usize,
@@ -62,41 +62,32 @@ struct Options {
     volume: f32,
 }
 
-fn parse(args: &[String]) -> Options {
-    let mut o = Options { size: (112, 38), play: 1, at: 60.0, volume: 0.72, ..Options::default() };
-    let mut it = args.iter();
-    while let Some(a) = it.next() {
-        match a.as_str() {
-            "--size" => {
-                if let Some((c, r)) = it.next().and_then(|s| s.split_once('x')) {
-                    o.size = (c.parse().unwrap_or(o.size.0), r.parse().unwrap_or(o.size.1));
-                }
-            }
-            "--theme" => o.theme = it.next().cloned(),
-            "--dialog" => o.modal = it.next().cloned(),
-            "--music" => o.music = it.next().map(PathBuf::from),
-            "--play" => o.play = it.next().and_then(|s| s.parse().ok()).unwrap_or(1),
-            "--at" => o.at = it.next().and_then(|s| s.parse().ok()).unwrap_or(60.0),
-            "--vis" => o.vis = it.next().map(|s| spectrum::Mode::from_label(s)),
-            "--filter" => o.filter = it.next().cloned(),
-            "--cursor" => o.cursor = it.next().and_then(|s| s.parse().ok()),
-            "--browse-as" => o.browse_as = it.next().map(PathBuf::from),
-            "--shuffle" => o.shuffle = true,
-            "--volume" => o.volume = it.next().and_then(|s| s.parse().ok()).unwrap_or(0.72),
+impl Options {
+    /// One of this app's options, with `it` for its value.
+    fn parse(&mut self, a: &str, it: &mut std::slice::Iter<'_, String>) {
+        match a {
+            "--music" => self.music = it.next().map(PathBuf::from),
+            "--play" => self.play = it.next().and_then(|s| s.parse().ok()).unwrap_or(1),
+            "--at" => self.at = it.next().and_then(|s| s.parse().ok()).unwrap_or(60.0),
+            "--vis" => self.vis = it.next().map(|s| spectrum::Mode::from_label(s)),
+            "--filter" => self.filter = it.next().cloned(),
+            "--cursor" => self.cursor = it.next().and_then(|s| s.parse().ok()),
+            "--browse-as" => self.browse_as = it.next().map(PathBuf::from),
+            "--shuffle" => self.shuffle = true,
+            "--volume" => self.volume = it.next().and_then(|s| s.parse().ok()).unwrap_or(0.72),
             _ => {}
         }
     }
-    o
 }
 
 pub fn run(args: &[String]) -> ExitCode {
-    let Some(out) = args.first().map(PathBuf::from) else {
-        eprintln!("--screenshot needs an output file");
-        return ExitCode::FAILURE;
+    let mut o = Options { play: 1, at: 60.0, volume: 0.72, ..Options::default() };
+    let shot = match shot::parse(args, (112, 38), |a, it| o.parse(a, it)) {
+        Ok(s) => s,
+        Err(code) => return code,
     };
-    let o = parse(&args[1..]);
     let mut app = App::new(Arc::new(|| {}), false, false);
-    if let Some(t) = &o.theme {
+    if let Some(t) = &shot.theme {
         let s = orchard_theme::schemes::get_scheme(&orchard_theme::dirs::schemes_dir(), t);
         app.apply_scheme(s);
     }
@@ -117,15 +108,12 @@ pub fn run(args: &[String]) -> ExitCode {
         }
     };
 
-    let mut r = match HeadlessRenderer::new(app.theme.font.clone(), 2.0) {
+    let mut r = match shot::renderer(app.theme.font.clone()) {
         Ok(r) => r,
-        Err(e) => {
-            eprintln!("renderer: {e}");
-            return ExitCode::FAILURE;
-        }
+        Err(code) => return code,
     };
-    let m = r.renderer().metrics();
-    app.resized(o.size.0, o.size.1, (m.width as f32, m.height as f32));
+    let (cols, rows) = shot.size;
+    app.resized(cols, rows, shot::cell_px(&mut r));
     match &music {
         Some(audio) => real_spectrum(&mut app, audio),
         None => fake_spectrum(&mut app),
@@ -135,7 +123,7 @@ pub fn run(args: &[String]) -> ExitCode {
     {
         eprintln!("cover: {e}");
     }
-    match o.modal.as_deref() {
+    match shot.dialog.as_deref() {
         Some("help") => app.modal = Some(Modal::Help),
         Some("themes") => app.open_theme_picker(),
         Some("save") => app.open_save_prompt(),
@@ -154,26 +142,9 @@ pub fn run(args: &[String]) -> ExitCode {
         }
         None => {}
     }
-    let mut frame = Frame::new(o.size.0, o.size.1, app.theme.colors.background);
+    let mut frame = Frame::new(cols, rows, app.theme.colors.background);
     ui::draw(&app, &mut frame);
-    let saved = r.render(&frame).map_err(|e| e.to_string()).and_then(|img| save(&img, &out));
-    match saved {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(e) => {
-            eprintln!("screenshot: {e}");
-            ExitCode::FAILURE
-        }
-    }
-}
-
-/// PNG, or lossless WebP for a `.webp` name.
-fn save(img: &orchard_grid::RgbaImage, out: &Path) -> Result<(), String> {
-    let webp = out.extension().is_some_and(|e| e.eq_ignore_ascii_case("webp"));
-    if !webp {
-        return img.save_png(out).map_err(|e| e.to_string());
-    }
-    let buf = image::RgbaImage::from_raw(img.width, img.height, img.data.clone()).ok_or("bad image size")?;
-    buf.save_with_format(out, image::ImageFormat::WebP).map_err(|e| e.to_string())
+    shot::finish(&mut r, &frame, &shot.out)
 }
 
 /// The file browser on `dir` (the music folder), listed right away; its

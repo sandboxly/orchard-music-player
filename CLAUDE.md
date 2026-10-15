@@ -21,7 +21,7 @@ cargo run -- --screenshot /tmp/x.png --size 112x38 --dialog settings      # look
 
 ## Architecture
 
-- `app.rs` owns all state and logic (playlist, modals, filter, gapless queue, session); `ui/` draws it as a pure function into an `orchard_grid::Frame` with `orchard_kit::widgets`; `main.rs` owns only the window, input conversion (keys via `orchard_kit::winit`, plus the play/pause media key as Space, which the kit leaves to the app) and wake-ups.
+- `app.rs` owns all state and logic (playlist, modals, filter, gapless queue, session); `ui/` draws it as a pure function into an `orchard_grid::Frame` with `orchard_kit::widgets`; `main.rs` plugs `App` into `orchard_shell` (the shared window, event loop, input conversion, wake-ups and command line) and adds only what the player does there: the play/pause media key as Space (which the kit leaves to the app), media keys, dropped files and the cover upload.
 - `audio.rs`: a decoder thread (symphonia, Opus through libopus) fills a buffer in the output's format; `audio/output.rs` owns the cpal stream on its own thread and follows the system's default device (a format change re-opens the track where it was heard).
 - Blocking work (tags, covers, folder listings, M3U) goes through `app.tasks` (`orchard_kit::tasks`), never the UI thread.
 

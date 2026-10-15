@@ -2,7 +2,6 @@
 //! player's config directory. The appearance keys mean what they mean in
 //! Orchard Commander's settings.
 
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use orchard_theme::schemes::Appearance;
@@ -10,11 +9,7 @@ use serde::{Deserialize, Serialize};
 
 /// `$ORCHARD_MUSIC_PLAYER_CONFIG_DIR`, or the platform's config folder.
 pub fn config_dir() -> PathBuf {
-    if let Some(d) = std::env::var_os("ORCHARD_MUSIC_PLAYER_CONFIG_DIR").filter(|d| !d.is_empty()) {
-        return PathBuf::from(d);
-    }
-    let name = if cfg!(target_os = "linux") { "orchard-music-player" } else { "Orchard Music Player" };
-    dirs::config_dir().unwrap_or_else(std::env::temp_dir).join(name)
+    orchard_shell::config::app_config_dir("ORCHARD_MUSIC_PLAYER_CONFIG_DIR", "orchard-music-player", "Orchard Music Player")
 }
 
 /// The player's font size unless changed (Commander's is 13: the player's
@@ -88,17 +83,11 @@ impl Settings {
     }
 
     pub fn load(dir: &Path) -> Settings {
-        fs::read_to_string(dir.join("settings.json"))
-            .ok()
-            .and_then(|t| serde_json::from_str(&t).ok())
-            .unwrap_or_default()
+        orchard_shell::config::load_json(&dir.join("settings.json"))
     }
 
     pub fn save(&self, dir: &Path) -> std::io::Result<()> {
-        fs::create_dir_all(dir)?;
-        let tmp = dir.join("settings.json.tmp");
-        fs::write(&tmp, serde_json::to_string_pretty(self).unwrap_or_default())?;
-        fs::rename(tmp, dir.join("settings.json"))
+        orchard_shell::config::save_json(&dir.join("settings.json"), self)
     }
 }
 
@@ -108,6 +97,8 @@ pub fn session_file(dir: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use super::*;
 
     #[test]
