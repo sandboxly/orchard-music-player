@@ -43,7 +43,7 @@ pub struct Filter {
 
 impl Default for Filter {
     fn default() -> Self {
-        Filter { field: TextField::default().flush(), editing: false, matches: Vec::new() }
+        Filter { field: TextField::default().flush().plain(), editing: false, matches: Vec::new() }
     }
 }
 
@@ -882,7 +882,7 @@ impl App {
         self.modal = Some(Modal::Prompt(Prompt {
             title: "Save playlist".into(),
             label: "Save as M3U:".into(),
-            field: TextField::new(path.to_string_lossy()).flush(),
+            field: TextField::new(path.to_string_lossy()).flush().plain(),
             action: PromptAction::SavePlaylist,
         }));
     }

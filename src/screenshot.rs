@@ -142,7 +142,7 @@ pub fn run(args: &[String]) -> ExitCode {
         Some("filter") => {
             app.start_filter();
             if let Some(f) = &mut app.filter {
-                f.field = orchard_kit::widgets::TextField::new(o.filter.as_deref().unwrap_or("ai")).flush();
+                f.field = orchard_kit::widgets::TextField::new(o.filter.as_deref().unwrap_or("ai")).flush().plain();
             }
             app.refilter();
         }

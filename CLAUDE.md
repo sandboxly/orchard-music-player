@@ -21,7 +21,7 @@ cargo run -- --screenshot /tmp/x.png --size 112x38 --dialog settings      # look
 
 ## Architecture
 
-- `app.rs` owns all state and logic (playlist, modals, filter, gapless queue, session); `ui/` draws it as a pure function into an `orchard_grid::Frame` with `orchard_kit::widgets`; `main.rs` owns only the window, input conversion (keys via `orchard_kit::winit`) and wake-ups.
+- `app.rs` owns all state and logic (playlist, modals, filter, gapless queue, session); `ui/` draws it as a pure function into an `orchard_grid::Frame` with `orchard_kit::widgets`; `main.rs` owns only the window, input conversion (keys via `orchard_kit::winit`, plus the play/pause media key as Space, which the kit leaves to the app) and wake-ups.
 - `audio.rs`: a decoder thread (symphonia, Opus through libopus) fills a buffer in the output's format; `audio/output.rs` owns the cpal stream on its own thread and follows the system's default device (a format change re-opens the track where it was heard).
 - Blocking work (tags, covers, folder listings, M3U) goes through `app.tasks` (`orchard_kit::tasks`), never the UI thread.
 
@@ -29,6 +29,6 @@ cargo run -- --screenshot /tmp/x.png --size 112x38 --dialog settings      # look
 
 - **UI copy** (key bar, help, toasts, errors, empty states, prompts, hints) follows `docs/ai-microcopy-guide.md`: sentence case, front-loaded and short, errors that say what went wrong, why and how to fix it, empty states that say how to start, no periods on fragments. Read it before writing or changing user-visible text. Developer details go to the log, not into messages.
 - Glyphs must exist in the grid font: emoji-presentation symbols fall back to an emoji font and break the layout (the transport uses `|◀ ▶ ❚❚ ■ ▶|`).
-- Text fields are built with `TextField::new(..).flush()` (no one-cell inset), so narrow hex fields show all of `#rrggbb`.
+- Text fields are built with `TextField::new(..).flush().plain()`: no one-cell inset, so narrow hex fields show all of `#rrggbb`, and no paste or ⌘⌫ shortcuts (modifiers are ignored, as before the kit).
 - Media keys need the window handle on Windows (not wired up); macOS and Linux work.
 - **Commons lockfile**: CI builds with `--locked`, so `Cargo.lock` must record the orchard crates with their git source. A build with a local `[patch]` rewrites them as path packages: before committing the lockfile, disable the patch and run `cargo update -p orchard-grid -p orchard-theme -p orchard-kit -p orchard-metadata`. Keep the patch out of commits (the tracked `.cargo/config.toml` holds only the Windows static C runtime).

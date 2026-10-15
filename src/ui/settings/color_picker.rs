@@ -155,7 +155,7 @@ impl ColorPicker {
             sat: 0,
             val: 0,
             well: (0..48).find(|&i| basic_color(i) == color).unwrap_or(0),
-            hex: TextField::default().flush(),
+            hex: TextField::default().flush().plain(),
             buttons: ButtonRow::new(&["Use color", "Cancel"]),
             focus: Focus::Field,
             drag: None,

@@ -13,14 +13,15 @@ use std::time::{Duration, Instant};
 
 use orchard_grid::winit;
 use orchard_grid::{FontConfig, Frame, Rendered, WindowRenderer};
-use orchard_kit::input::{MouseEvent, MouseKind};
+use orchard_kit::input::{KeyEvent, MouseEvent, MouseKind};
 use orchard_music_player::App;
 use orchard_music_player::ui;
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalPosition, PhysicalSize};
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::keyboard::ModifiersState;
+use winit::keyboard::{Key as WKey, ModifiersState, NamedKey};
+use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 use winit::window::{Window, WindowId};
 
 mod screenshot;
@@ -140,6 +141,16 @@ impl Platform {
     }
 }
 
+/// A key press as a [`KeyEvent`] (the kit's conversion), `None` for keys the
+/// app doesn't use. The keyboard's play/pause media key arrives as Space, so
+/// it plays and pauses, whatever modifiers are held.
+fn convert_key(ev: &winit::event::KeyEvent, mods: ModifiersState) -> Option<KeyEvent> {
+    if ev.key_without_modifiers() == WKey::Named(NamedKey::MediaPlayPause) {
+        return Some(KeyEvent::char(' '));
+    }
+    orchard_kit::winit::convert_key(ev, mods)
+}
+
 impl ApplicationHandler<UserEvent> for Platform {
     fn resumed(&mut self, el: &ActiveEventLoop) {
         if self.win.is_some() {
@@ -235,7 +246,7 @@ impl ApplicationHandler<UserEvent> for Platform {
                 input = false;
             }
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
-                if let Some(k) = orchard_kit::winit::convert_key(&event, self.mods) {
+                if let Some(k) = convert_key(&event, self.mods) {
                     self.app.handle_key(&k);
                 }
             }

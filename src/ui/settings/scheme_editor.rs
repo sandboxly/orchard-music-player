@@ -116,7 +116,7 @@ impl SchemeEditor {
     }
 
     fn new(slot: Slot, scheme: ColorScheme, name: String, original: Option<String>, create: bool) -> Self {
-        let hex = COLOR_ROLES.iter().map(|(role, _, _)| TextField::new(scheme.color(role).unwrap_or_default()).flush()).collect();
+        let hex = COLOR_ROLES.iter().map(|(role, _, _)| TextField::new(scheme.color(role).unwrap_or_default()).flush().plain()).collect();
         let labels: &[&str] = if original.is_some() { &[SAVE, DELETE, CANCEL] } else { &[SAVE, CANCEL] };
         SchemeEditor {
             slot,
@@ -124,7 +124,7 @@ impl SchemeEditor {
             original,
             create,
             scheme,
-            name: TextField::new(name).flush(),
+            name: TextField::new(name).flush().plain(),
             hex,
             buttons: ButtonRow::new(labels),
             focus: Focus::Name,
