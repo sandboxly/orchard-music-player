@@ -2185,8 +2185,8 @@ dependencies = [
 
 [[package]]
 name = "orchard-grid"
-version = "0.2.0"
-source = "git+https://github.com/sandboxly/orchard-commons?tag=v0.2.0#872e58780b6d13d08d06ea0b1b5e5ec1f8519fed"
+version = "0.3.0"
+source = "git+https://github.com/sandboxly/orchard-commons?tag=v0.3.0#d2686829da1a9d2e35c967ec5221bd9b9b03cfb3"
 dependencies = [
  "bytemuck",
  "fontdb",
@@ -2205,18 +2205,20 @@ dependencies = [
 
 [[package]]
 name = "orchard-kit"
-version = "0.2.0"
-source = "git+https://github.com/sandboxly/orchard-commons?tag=v0.2.0#872e58780b6d13d08d06ea0b1b5e5ec1f8519fed"
+version = "0.3.0"
+source = "git+https://github.com/sandboxly/orchard-commons?tag=v0.3.0#d2686829da1a9d2e35c967ec5221bd9b9b03cfb3"
 dependencies = [
  "arboard",
+ "dirs",
  "orchard-grid",
+ "orchard-places",
  "orchard-theme",
 ]
 
 [[package]]
 name = "orchard-metadata"
-version = "0.2.0"
-source = "git+https://github.com/sandboxly/orchard-commons?tag=v0.2.0#872e58780b6d13d08d06ea0b1b5e5ec1f8519fed"
+version = "0.3.0"
+source = "git+https://github.com/sandboxly/orchard-commons?tag=v0.3.0#d2686829da1a9d2e35c967ec5221bd9b9b03cfb3"
 dependencies = [
  "imagesize",
  "kamadak-exif",
@@ -2245,13 +2247,25 @@ dependencies = [
  "symphonia",
  "symphonia-adapter-libopus",
  "tempfile",
+]
+
+[[package]]
+name = "orchard-places"
+version = "0.3.0"
+source = "git+https://github.com/sandboxly/orchard-commons?tag=v0.3.0#d2686829da1a9d2e35c967ec5221bd9b9b03cfb3"
+dependencies = [
+ "dirs",
+ "orchard-theme",
+ "serde",
+ "serde_json",
+ "uuid",
  "windows-sys 0.61.2",
 ]
 
 [[package]]
 name = "orchard-shell"
-version = "0.2.0"
-source = "git+https://github.com/sandboxly/orchard-commons?tag=v0.2.0#872e58780b6d13d08d06ea0b1b5e5ec1f8519fed"
+version = "0.3.0"
+source = "git+https://github.com/sandboxly/orchard-commons?tag=v0.3.0#d2686829da1a9d2e35c967ec5221bd9b9b03cfb3"
 dependencies = [
  "dirs",
  "image",
@@ -2265,8 +2279,8 @@ dependencies = [
 
 [[package]]
 name = "orchard-theme"
-version = "0.2.0"
-source = "git+https://github.com/sandboxly/orchard-commons?tag=v0.2.0#872e58780b6d13d08d06ea0b1b5e5ec1f8519fed"
+version = "0.3.0"
+source = "git+https://github.com/sandboxly/orchard-commons?tag=v0.3.0#d2686829da1a9d2e35c967ec5221bd9b9b03cfb3"
 dependencies = [
  "dirs",
  "orchard-grid",
@@ -2860,6 +2874,8 @@ version = "1.0.154"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7e9cc8b1b85264074fbcc02a88680c4096b1e47df8f739dceb03bf482f04bd6"
 dependencies = [
+ "foldhash",
+ "indexmap",
  "itoa",
  "memchr",
  "serde",
@@ -3620,6 +3636,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
 
 [[package]]
+name = "uuid"
+version = "1.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7cc1186384beb7dd8eedea376413fd654937285ea6c9cfbb928dc3043ea4b606"
+dependencies = [
+ "getrandom 0.4.3",
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4062,7 +4089,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
