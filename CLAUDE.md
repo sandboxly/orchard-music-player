@@ -31,3 +31,4 @@ cargo run -- --screenshot /tmp/x.png --size 112x38 --dialog settings      # look
 - Glyphs must exist in the grid font: emoji-presentation symbols fall back to an emoji font and break the layout (the transport uses `|◀ ▶ ❚❚ ■ ▶|`).
 - Text fields are built with `TextField::new(..).flush()` (no one-cell inset), so narrow hex fields show all of `#rrggbb`.
 - Media keys need the window handle on Windows (not wired up); macOS and Linux work.
+- **Commons lockfile**: CI builds with `--locked`, so `Cargo.lock` must record the orchard crates with their git source. A build with a local `[patch]` rewrites them as path packages: before committing the lockfile, disable the patch and run `cargo update -p orchard-grid -p orchard-theme -p orchard-kit -p orchard-metadata`. Keep the patch out of commits (the tracked `.cargo/config.toml` holds only the Windows static C runtime).
