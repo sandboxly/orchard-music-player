@@ -86,9 +86,14 @@ impl Pick {
                 .mark_folders()
                 .add_folder()
                 .filter(|p| meta::is_audio(p) || meta::is_playlist(p))
+                .highlight(meta::is_playlist)
                 .title("Add music")
                 .accept("Add to playlist"),
-            Pick::Playlist => Options::files(start).filter(meta::is_playlist).title("Load playlist").accept("Load playlist"),
+            Pick::Playlist => Options::files(start)
+                .filter(meta::is_playlist)
+                .highlight(meta::is_playlist)
+                .title("Load playlist")
+                .accept("Load playlist"),
         }
     }
 }
