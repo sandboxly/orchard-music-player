@@ -936,7 +936,7 @@ mod tests {
         assert!(notices.iter().any(|n| matches!(n, Notice::Advanced(i) if i.path == b)), "{notices:?}");
         assert!(position_after_switch.unwrap() < 0.05, "{position_after_switch:?}");
         // Trailing silence is the last block's padding; before it, no gap.
-        let frames: Vec<f32> = out.chunks_exact(2).map(|f| f[0]).collect();
+        let frames: Vec<f32> = out.as_chunks::<2>().0.iter().map(|f| f[0]).collect();
         let end = frames.iter().rposition(|v| v.abs() > 1e-4).unwrap();
         let longest_quiet = frames[..end].split(|v| v.abs() > 1e-4).map(<[f32]>::len).max().unwrap_or(0);
         assert!(longest_quiet < 4, "a gap of {longest_quiet} frames");
