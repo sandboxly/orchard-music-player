@@ -5388,7 +5388,7 @@ SOFTWARE.
 MIT License (MIT)
 
 Used by:
-  - orchard-music-player 1.1.1
+  - orchard-music-player 1.1.2
 
 MIT License
 
